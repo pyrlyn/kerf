@@ -1,0 +1,19 @@
+[package]
+name = "kerf-core"
+description = "Kerf core: text buffer with undo/redo and edit events, and a bounded single-threaded event loop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+crop = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

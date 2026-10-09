@@ -10,3 +10,20 @@ license = "GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free"
 repository = "https://github.com/pyrlyn/kerf"
 
 [workspace.dependencies]
+# kerf-core
+# Rope with a byte-offset API, which is what tree-sitter edits and line lookups speak.
+crop = "0.4.3"
+thiserror = "2.0.21"
+# Property tests for undo/redo and edit-event positions.
+proptest = "1.11.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
