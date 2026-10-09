@@ -1,2 +1,2 @@
 [tools]
-rust = { version = "1.98.1", components = "rustfmt,clippy" } # same pin as cox, whose plugin contract Kerf shares
+rust = { version = "1.99.0", components = "rustfmt,clippy" } # latest stable at project start
