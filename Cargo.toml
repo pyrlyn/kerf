@@ -10,3 +10,6 @@ license = "GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free"
 repository = "https://github.com/pyrlyn/kerf"
 
 [workspace.dependencies]
+thiserror = "2.0.21"
+tree-sitter = "0.27.1"
+tree-sitter-rust = "0.24.2"
