@@ -201,7 +201,7 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 
 ## 5. Open questions
 
-- **Plugin ABI.** Core modules with JSON over extism (cox, `wasm-plugin-host`) or WIT components (Zed, Lapce via WASI)? Taking cox "as is" means core modules; versioned WIT would be a new contract.
-- **Licence.** Kerf's licence is not chosen yet. It decides whether host code can be copied from cox (GPL-3.0-or-later or royalty-free) or only taken through the MIT/Apache crates.
+- **Plugin ABI.** Core modules with JSON over extism (cox, `wasm-plugin-host`) or WIT components (Zed, Lapce via WASI)? Taking cox "as is" means core modules; versioned WIT would be a new contract. Settled by the creator on 2026-10-09: cox's ABI as is.
+- **Licence.** Settled by the creator on 2026-10-09: the same terms as cox (GPL-3.0-or-later or royalty-free, plus commercial), so host code may be taken from cox.
 - **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window could be Slint through slint-bindings or Flutter through slint_dart.
 - **Mobile.** Wasmtime needs a JIT. iOS and Android need an interpreter backend behind the same host API.

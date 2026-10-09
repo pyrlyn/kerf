@@ -7,7 +7,8 @@ If an `AGENTS.md` or `CLAUDE.md` exists higher in the tree, follow it too; on co
 ## Read first
 
 - `research.md` — the survey of existing IDEs and editors, and what Kerf takes from each.
-- `ideas.md` — candidate tasks. None is approved yet.
+- `plan.md` — active tasks. T1 (architecture) sets the contracts the other tasks build on.
+- `ideas.md` — candidate tasks, not approved.
 
 ## Direction
 
@@ -18,8 +19,12 @@ Settled by the creator; reasons are in `research.md`.
 - **What a plugin can do is readable without running its code.** The core reads capabilities and activation triggers from the manifest and loads plugin code lazily.
 - **A plugin crash never takes down the IDE.** Plugins run in a sandbox and talk to the core through versioned interfaces.
 - **The core keeps its own semantic layer.** Language servers add to it; they do not replace it.
+- **Plugin ABI: cox's, as is.** Plugins are core WASM modules called with JSON through extism (`cox:host/v1`), hosted by the shared `wasm-plugin-host` crate. No WIT components.
+- **Licence:** `GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free`, plus a commercial licence (`PRICING.md`), the same terms as cox.
 
 ## Hard rules
 
 - **Everything a plugin, a language server, a debug adapter or a repository writes is untrusted input.** Every queue and buffer it can grow has a hard cap.
 - **No native plugins.** Native code bypasses the sandbox.
+- **One Cargo workspace.** Every crate lives in `crates/` and takes shared versions from `[workspace.dependencies]`.
+- **Toolchain through mise.** `mise.toml` pins Rust; run `mise trust` once in a fresh checkout.
