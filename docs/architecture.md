@@ -75,7 +75,7 @@ from `[workspace.dependencies]` (AGENTS.md hard rules).
 | `crates/kerf-process` | approved, created by its first task | Spawn, supervise, cap and stop LSP, DAP and task processes. The only crate that creates OS processes for those services. |
 | `crates/kerf-lsp` | created in T8 | LSP client (JSON-RPC over stdio). Not a plugin. Until `kerf-process` exists it holds the per-server caps of §5.2 (message size, inbound queue, stderr ring, timeouts, shutdown budget) and starts processes only through its `Spawn` trait; process counts and the restart budget belong to `kerf-process`. |
 | `crates/kerf-dap` | approved, created by its first task | DAP client on top of `kerf-process`. Not a plugin. |
-| `crates/kerf-plugin` | approved, created by its first task | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
+| `crates/kerf-plugin` | created by T6 | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
 
 Shared engines Kerf depends on rather than copies:
 

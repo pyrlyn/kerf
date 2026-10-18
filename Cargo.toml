@@ -47,7 +47,11 @@ config-schema = "0.1.0"
 # JSON: plugin export payloads in `kerf-inspect` (the encoding cox's ABI uses
 # through extism, `docs/architecture.md` §3), LSP messages in `kerf-lsp` and
 # the scripted server's answer files; also writes the trust schema.
-serde_json = "1.0.154"
+# `preserve_order` on for every crate: `cox-plugin-api` turns it on by feature
+# unification, and schemars' key order follows it, so without it here a
+# committed schema would read stale or current depending on which crates a
+# build selects.
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
 # Throwaway folder trees for the Workspace Trust and plugin lockfile tests (dev
 # only): removed on drop, so tests never touch a real home or each other's folders.
 tempfile = "3.27.0"
@@ -64,6 +68,14 @@ sha2 = "0.11.1"
 hex = "0.4.3"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
+# The extism plugin engine shared with cox and scull (worker thread, lanes,
+# deadlines, memory cap, package layout). A git pin, not a registry version:
+# it is not on crates.io, where the name `wasm_plugin_host` already belongs to
+# an unrelated crate.
+wasm-plugin-host = { git = "https://github.com/pyrlyn/crates", rev = "ca1be0671d65fcbf5acb3bac6b30d8d53c434877" }
+# cox's plugin contract: `PluginManifest` and the ABI payloads (`InitIn`,
+# `InitOut`). Kerf takes the contract as is; not on crates.io, so a git pin.
+cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac85bf24ce1114d5082e59d172e" }
 # The index the inspection runner (`kerf-inspect`) hands to plugins, and the
 # index the LSP end-to-end test merges into.
 kerf-semantic = { path = "crates/kerf-semantic" }
