@@ -75,6 +75,10 @@ Plan:
 1. Add the workflow (Linux x86_64, macOS arm64, Windows x86_64 — no Intel Mac).
 2. Add the crates to `toolchain.md`, and to `rust.md` if they are new.
 
+### T12. UI shell
+
+Split when claimed (500-line task cap). The first window. The creator's direction (`research.md` §7): native controls in a native host per platform, talking to the Rust core through a C ABI, and Kerf's own GPU renderer for the editor surface inside a native view. The editor looks native: like Xcode's on macOS and like Visual Studio's on Windows (`research.md` §7, "Look"); the host supplies the font, colours and caret, the renderer hard-codes none. macOS first; Windows and Linux hosts are in `roadmap.md`. Rendering is a trait `kerf-core` defines (`docs/architecture.md` §2.1). Plugin UI and redraw-on-request come in later tasks. The subtasks together are done when the macOS app opens a file, shows it in the GPU-drawn editor view inside a native AppKit window, takes typing, undo and redo through `kerf-core`, and headless tests cover that path.
+
 ### T12.1. Rendering trait, editor and toolkit choice
 
 - `research.md` §7: the UI shell direction with primary sources — first Slint through slint-bindings against Flutter through slint_dart, then the creator's choice of native hosts over a C ABI with Kerf's own GPU editor renderer (`wgpu` + `cosmic-text` + `glyphon`).
@@ -148,6 +152,22 @@ Outcome:
 - `XcodeTheme`: Xcode's `XCFontAndColorCurrentTheme`/`XCFontAndColorCurrentDarkTheme`, the theme from the user folder or Xcode's bundle, background, plain text colour and font; anything missing falls back to Kerf's Light and Dark themes. The font family comes from the font's `name` table, since CoreText's name for the system monospace (".AppleSystemUIFontMonospaced") is in no file and Kerf's font database would miss it. Font weight is not passed yet (`Theme` has none).
 - Fix found by the host test: a hidden window skips frames (wgpu reports `Occluded`), and the caret stayed where the last drawn frame had it. `GpuRenderer::lay_out` now updates the caret on skipped frames.
 - Tests: `swift test` types, deletes, undoes and redoes through the view in a window that is not on screen, checks the caret and the UTF-16 cursor, follows Light/Dark, and parses fixture themes the test writes (Kerf never copies Apple's files). CI: the `macos-host` job on `xcode-27` builds `kerf-ffi`, then runs `swift-format lint --strict`, `swift build` and `swift test`.
+
+### T12.5. Editor selection
+
+Selection from the core to the screen: a selection range in `Editor` (anchor and cursor, extended by Shift-moves and replaced by typing), carried in `Frame`; a selection colour in `Theme` that `kerf-render` fills behind the selected text; C ABI calls to set and read the selection; the macOS host passes `NSColor.selectedTextBackgroundColor` (or the Xcode theme's selection colour) and maps Shift-arrows and `selectedRange`/`setSelectedRange` in `NSTextInputClient`. Done when core tests cover selection edits and undo, the offscreen render test finds the selection colour behind the selected text, and the Swift test selects and replaces text through the view.
+
+Plan:
+
+1. `kerf-core`: `Editor` keeps an anchor next to the cursor (equal when nothing is selected); `select_left`/`select_right` move the cursor and keep the anchor, plain moves collapse a selection to its edge, `insert` and `backspace` replace it in one buffer edit, so one undo restores it; `select(anchor, cursor)` checks both offsets. `Frame` carries the anchor and answers `selection()`.
+2. `kerf-render`: `Theme.selection`; `Layout` turns the selected bytes into one rectangle per line span with `cosmic-text`'s `LayoutRun::highlight`, and a selected line break fills the rest of its row. `GpuRenderer` draws them as solid custom glyphs, which glyphon draws before the text.
+3. `kerf-ffi`: `KERF_COMMAND_SELECT_LEFT`/`SELECT_RIGHT`, `kerf_editor_selection` and `kerf_editor_select` (UTF-8 offsets; `KERF_STATUS_OUT_OF_RANGE` past the end or inside a character), `KerfTheme.selection`; header re-blessed.
+4. `macos/`: `moveLeftAndModifySelection:`/`moveRightAndModifySelection:`, `selectedRange` and `setSelectedRange` in UTF-16, `insertText`'s replacement range, Select All in the Edit menu, no system caret while something is selected; the selection colour is the Xcode theme's `DVTSourceTextSelectionColor`, else `NSColor.selectedTextBackgroundColor` for the appearance.
+
+Outcome:
+
+- Tests: core unit tests for Shift-moves, collapsing, replace and delete with undo, and refused offsets; a layout test for the rectangles across a line break and an empty line; an offscreen GPU test that finds the selection colour behind the selected letters, the letters drawn over it and none beside it; the C ABI test selects with commands and offsets, replaces and undoes, and checks a broken host's offsets and null pointers; the Swift test selects with `setSelectedRange` and Shift-Left, replaces, deletes, undoes, replaces through `insertText`'s range and selects all, with the caret hidden during a selection; theme tests read the Xcode selection colour and the system fallback.
+- Steps are whole characters, as for the cursor; word, line and mouse selection, and copy and paste, come with the commands that need them.
 
 ### T3. Semantic layer: incremental parse and symbol index
 
