@@ -15,6 +15,12 @@
 | `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
 | `tree-sitter` | Cargo (workspace dep) | `kerf-semantic`: incremental re-parse from the old tree, and the query engine for tags | https://crates.io/crates/tree-sitter |
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
+| `serde` | Cargo (workspace dep) | `kerf-plugin-lock`: (de)serialization of the plugin lockfile | https://crates.io/crates/serde |
+| `toml` | Cargo (workspace dep) | `kerf-plugin-lock`: reads and writes the plugin lockfile | https://crates.io/crates/toml |
+| `fs-kit` | Cargo (workspace dep) | `kerf-plugin-lock`: atomic lockfile writes; shared crate from pyrlyn/crates | https://crates.io/crates/fs-kit |
+| `schemars` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: the lockfile's JSON Schema from its types | https://crates.io/crates/schemars |
+| `config-schema` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: fails when the committed schema is stale; shared crate from pyrlyn/crates | https://crates.io/crates/config-schema |
+| `tempfile` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: per-test temporary directories | https://crates.io/crates/tempfile |
 
 ## Linkers
 
