@@ -23,6 +23,8 @@
 | `config-schema` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: fails when the committed schema is stale; shared crate from pyrlyn/crates | https://crates.io/crates/config-schema |
 | `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of the inspection payloads, as cox's ABI uses through extism; `kerf-core` (dev): writes the generated schema | https://crates.io/crates/serde_json |
 | `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` tests: per-test temporary directories | https://crates.io/crates/tempfile |
+| `ureq` | Cargo (workspace dep) | `kerf-complete`: blocking HTTP for fill-in-the-middle requests on a worker thread; whole-call timeout and body limit built in, no async runtime; gzip off so the limit caps decoded bytes | https://crates.io/crates/ureq |
+| `httpmock` | Cargo (workspace dev dep) | `kerf-complete` tests: a fake `/v1/infill` with per-mock delays, bodies and call counts (timeout, size cap, cancellation) | https://crates.io/crates/httpmock |
 
 ## Linkers
 
