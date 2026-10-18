@@ -81,6 +81,20 @@ Plan:
 
 Result: definition recall 1.000 and reference recall 1.000 on `tests/fixtures/recall.rs` (20 definitions, 27 references, no unlabelled hits). The upstream tags query alone reaches 0.750 and 0.519; the extra patterns cover path-qualified and turbofish calls, calls inside macro arguments, `impl Trait for Type`, trait method signatures, enum variants, `const` and `static`.
 
+### T7. Workspace Trust
+
+An untrusted folder starts no language servers, debuggers or tasks until the user trusts it. A trust store in the core, a check every process spawn goes through, and denial as a typed error. Done when tests show a spawn refused in an untrusted folder and allowed after trust is granted.
+
+Plan:
+
+1. Add a `trust` module to `crates/kerf-core` (the card says "in the core"; `kerf-process` is still only proposed): an in-memory `TrustStore` of canonical folder roots, where a trusted root covers its subfolders (VS Code and Zed both do this).
+2. One check, `TrustStore::authorize(cwd, kind)`, returns a `SpawnPermit` that only it can build, so a future `kerf-process` spawn takes the permit and cannot skip the check. Denial is a typed `TrustError`. Paths are canonicalized so `..` and symlinks cannot reach a trusted root's prefix.
+3. `revoke` returns the roots it removed so a supervisor can stop their processes (§5.3). Hard cap on stored roots.
+4. Persistence is open point 7 in `docs/architecture.md`; this task keeps the store in memory and leaves the file location to the creator.
+5. Tests: spawn refused while untrusted, allowed after trust, refused after revoke; subfolder, sibling-prefix and `..` cases; the cap. Verify with `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
+
+Result: `kerf_core::trust` — `TrustStore` (`grant`, `revoke`, `is_trusted`, `authorize`), `SpawnPermit`, `SpawnKind`, `TrustError`, `MAX_TRUSTED_ROOTS`. Ten unit tests cover refusal before trust, a permit after trust, refusal after revoke, subfolders, a sibling sharing the prefix, `..`, a symlink out of the root, revoking a parent or a subfolder, a deleted root, unresolvable paths and the cap. Persistence is not done: it waits on open point 7 in `docs/architecture.md`.
+
 ### T5. Return an error for the largest invalid line index
 
 TextBuffer::line must reject every out-of-range index without panicking or wrapping its diagnostic range.
