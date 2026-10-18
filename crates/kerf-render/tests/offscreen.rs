@@ -34,44 +34,11 @@ fn device() -> Option<(wgpu::Device, wgpu::Queue)> {
     Some(pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).unwrap())
 }
 
-/// The texture as rows of RGBA pixels.
-fn pixels(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    texture: &wgpu::Texture,
-) -> Vec<Vec<[u8; 4]>> {
-    let (width, height) = (texture.width(), texture.height());
-    let row = (width * 4).next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
-    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: None,
-        size: u64::from(row * height),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-    encoder.copy_texture_to_buffer(
-        texture.as_image_copy(),
-        wgpu::TexelCopyBufferInfo {
-            buffer: &buffer,
-            layout: wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(row),
-                rows_per_image: Some(height),
-            },
-        },
-        texture.size(),
-    );
-    queue.submit(Some(encoder.finish()));
-    buffer.map_async(wgpu::MapMode::Read, .., |mapped| mapped.unwrap());
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-    let data = buffer.get_mapped_range(..).unwrap();
-    data.chunks(row as usize)
-        .map(|line| {
-            line[..width as usize * 4]
-                .chunks(4)
-                .map(|p| [p[0], p[1], p[2], p[3]])
-                .collect()
-        })
+/// The view's last frame as rows of RGBA pixels.
+fn pixels(view: &Offscreen, width: usize) -> Vec<Vec<[u8; 4]>> {
+    let rgba = view.read_rgba().unwrap();
+    rgba.chunks(width * 4)
+        .map(|line| line.chunks(4).map(|p| [p[0], p[1], p[2], p[3]]).collect())
         .collect()
 }
 
@@ -104,7 +71,7 @@ fn frame_draws_background_text_and_the_caret_on_request() {
     ed.insert("Wide\nkerf").unwrap();
     view.render(&ed.frame()).unwrap();
     let caret = view.renderer().caret().unwrap();
-    let px = pixels(&device, &queue, view.texture());
+    let px = pixels(&view, 200);
 
     assert!(near(px[59][199], theme.background), "{:?}", px[59][199]);
     let first_line = px[..24].iter().flat_map(|r| &r[..100]);
@@ -130,6 +97,14 @@ fn frame_draws_background_text_and_the_caret_on_request() {
         ..theme.clone()
     });
     view.render(&ed.frame()).unwrap();
-    let px = pixels(&device, &queue, view.texture());
+    let px = pixels(&view, 200);
     assert!(near(px[cy][cx], theme.background), "{:?}", px[cy][cx]);
+
+    view.resize(Size {
+        width: 100,
+        height: 30,
+        scale: 1.0,
+    });
+    view.render(&ed.frame()).unwrap();
+    assert_eq!(view.read_rgba().unwrap().len(), 100 * 30 * 4);
 }
