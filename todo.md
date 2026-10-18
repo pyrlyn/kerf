@@ -9,6 +9,5 @@
 - T6. Plugin host on `wasm-plugin-host`
 - T7. Workspace Trust
 - T8. LSP results in the semantic layer
-- T9. Inspections with quick fixes
 - T10. Plugin lockfile
 - T11. Language-server and debug-adapter binaries through ketch
