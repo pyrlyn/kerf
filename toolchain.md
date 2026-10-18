@@ -15,6 +15,9 @@
 | `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
 | `tree-sitter` | Cargo (workspace dep) | `kerf-semantic`: incremental re-parse from the old tree, and the query engine for tags | https://crates.io/crates/tree-sitter |
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
+| `tree-sitter-python` | Cargo (workspace dep) | `kerf-semantic`: Python grammar and its tags query, the second language | https://crates.io/crates/tree-sitter-python |
+| `gen-lsp-types` | Cargo (workspace dep) | LSP types for answers merged into `kerf-semantic`, generated from the upstream metamodel; `lsp-types` has had no release since 2024-06 | https://crates.io/crates/gen-lsp-types |
+| `serde_json` | Cargo (workspace dep) | JSON for LSP messages and the scripted server's answer files | https://crates.io/crates/serde_json |
 
 ## Linkers
 

@@ -14,7 +14,7 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T6 | todo | P1 | 4 | 0% | |
 | T7 | todo | P1 | 3 | 0% | |
-| T8 | in progress | P2 | 5 | 5% | Claude Code / opus-5.5 |
+| T8 | in progress | P2 | 5 | 50% | Claude Code / opus-5.5 |
 | T9 | todo | P2 | 4 | 0% | |
 | T10 | todo | P2 | 2 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
