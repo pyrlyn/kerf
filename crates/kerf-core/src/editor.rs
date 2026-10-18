@@ -52,6 +52,13 @@ impl Editor {
         self.cursor
     }
 
+    /// The selection's fixed end as a byte offset; equal to the cursor when
+    /// nothing is selected.
+    #[must_use]
+    pub fn anchor(&self) -> usize {
+        self.anchor
+    }
+
     /// The selected bytes in buffer order; `None` when nothing is selected.
     #[must_use]
     pub fn selection(&self) -> Option<Range<usize>> {

@@ -30,6 +30,8 @@ pub struct KerfTheme {
     pub background: [u8; 4],
     /// Text.
     pub text: [u8; 4],
+    /// Fill behind selected text.
+    pub selection: [u8; 4],
     /// Caret, when Kerf draws it.
     pub caret: [u8; 4],
     /// Caret width.
@@ -93,6 +95,7 @@ unsafe fn theme(theme: *const KerfTheme) -> Result<Theme, KerfStatus> {
         line_height: t.line_height,
         background: t.background,
         text: t.text,
+        selection: t.selection,
         caret: t.caret,
         caret_width: t.caret_width,
         draw_caret: t.draw_caret != 0,

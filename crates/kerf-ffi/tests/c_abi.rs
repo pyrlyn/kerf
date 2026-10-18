@@ -3,7 +3,7 @@
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
 //! The whole host path through the C functions only: open a file, type,
-//! delete, undo, redo, render offscreen, place the caret, read pixels; and
+//! delete, undo, redo, select and replace, render offscreen, place the caret, read pixels; and
 //! the inputs a broken host can send.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -51,6 +51,15 @@ fn command(ed: *mut KerfEditor, c: u32) -> KerfStatus {
     unsafe { kerf_editor_command(ed, c) }
 }
 
+fn selection(ed: *mut KerfEditor) -> (usize, usize) {
+    let (mut anchor, mut cursor) = (usize::MAX, usize::MAX);
+    assert_eq!(
+        unsafe { kerf_editor_selection(ed, &mut anchor, &mut cursor) },
+        KerfStatus::Ok
+    );
+    (anchor, cursor)
+}
+
 #[test]
 fn host_opens_edits_and_renders_through_the_c_functions() {
     let dir = tempfile::tempdir().unwrap();
@@ -74,6 +83,20 @@ fn host_opens_edits_and_renders_through_the_c_functions() {
     );
     assert_eq!(cursor, "// é".len());
 
+    // Shift-Left twice from after "é" selects " é"; typing replaces it.
+    assert_eq!(command(ed, KERF_COMMAND_SELECT_LEFT), KerfStatus::Ok);
+    assert_eq!(command(ed, KERF_COMMAND_SELECT_LEFT), KerfStatus::Ok);
+    assert_eq!(selection(ed), (5, 2));
+    assert_eq!(insert(ed, "!"), KerfStatus::Ok);
+    assert_eq!(text(ed), "//!fn main() {}\n");
+    assert_eq!(selection(ed), (3, 3));
+    assert_eq!(command(ed, KERF_COMMAND_UNDO), KerfStatus::Ok);
+    assert_eq!(text(ed), "// éfn main() {}\n");
+    assert_eq!(unsafe { kerf_editor_select(ed, 0, 2) }, KerfStatus::Ok);
+    assert_eq!(command(ed, KERF_COMMAND_SELECT_RIGHT), KerfStatus::Ok);
+    assert_eq!(selection(ed), (0, 3));
+    assert_eq!(unsafe { kerf_editor_select(ed, 5, 5) }, KerfStatus::Ok);
+
     let family = "Menlo";
     let theme = KerfTheme {
         font_family: family.as_ptr(),
@@ -82,6 +105,7 @@ fn host_opens_edits_and_renders_through_the_c_functions() {
         line_height: 17.0,
         background: [30, 30, 30, 255],
         text: [250, 250, 250, 255],
+        selection: [40, 80, 200, 255],
         caret: [255, 0, 0, 255],
         caret_width: 2.0,
         draw_caret: 1,
@@ -177,7 +201,29 @@ fn broken_host_input_gets_a_status_not_a_crash() {
         KerfStatus::TooLarge
     );
     assert_eq!(command(ed, 99), KerfStatus::Unsupported);
-    assert_eq!(insert(ed, "abc"), KerfStatus::Ok);
+    assert_eq!(insert(ed, "abé"), KerfStatus::Ok);
+    // Past the end, inside "é", and null out-pointers change nothing.
+    assert_eq!(
+        unsafe { kerf_editor_select(ed, 0, 9) },
+        KerfStatus::OutOfRange
+    );
+    assert_eq!(
+        unsafe { kerf_editor_select(ed, 3, 0) },
+        KerfStatus::OutOfRange
+    );
+    assert_eq!(selection(ed), (4, 4));
+    let mut at = 0;
+    assert_eq!(
+        unsafe { kerf_editor_selection(ed, &mut at, null_mut()) },
+        KerfStatus::NullPointer
+    );
+    assert_eq!(
+        unsafe { kerf_editor_selection(ed, null_mut(), &mut at) },
+        KerfStatus::NullPointer
+    );
+    assert_eq!(at, 0);
+    assert_eq!(command(ed, KERF_COMMAND_BACKSPACE), KerfStatus::Ok);
+    assert_eq!(insert(ed, "c"), KerfStatus::Ok);
     let mut len = 0;
     let mut two = [0u8; 2];
     assert_eq!(
@@ -197,6 +243,7 @@ fn broken_host_input_gets_a_status_not_a_crash() {
         line_height: 17.0,
         background: [0; 4],
         text: [0; 4],
+        selection: [0; 4],
         caret: [0; 4],
         caret_width: 1.0,
         draw_caret: 7,
