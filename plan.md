@@ -6,28 +6,12 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
-| T4.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
-| T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T6 | todo | P1 | 4 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
 | T12 | todo | P2 | 5 | 0% | |
 | T13 | todo | P3 | 5 | 0% | |
 | T14 | todo | P3 | 4 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
-
-### T4. IDE permissions in `cox-plugin-api`
-
-Split when claimed (500-line task cap). Add the IDE permission set and the manifest tables for language servers and debug adapters, as T1 defines them, to cox's `cox-plugin-api`, its JSON Schemas and its docs. The plugin declares a process; the host spawns it, as with `[[mcp]]` today.
-
-The work happens in the cox repository and gets a matching task in cox's `plan.md` when it starts. Blocked on T1 only for the final names; the permission families are already in `research.md` (buffer, LSP, DAP, index, terminal, git) and can be implemented against that list.
-
-#### T4.1. IDE permission set
-
-The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-api`, with validation and schema.
-
-#### T4.2. LSP and DAP manifest tables
-
-`[[language_servers]]` and `[[debug_adapters]]` (names as T1 settles them) in `PluginManifest`, JSON Schema, and the docs. The plugin declares the command; the host spawns it.
 
 ### T6. Plugin host on `wasm-plugin-host`
 
