@@ -17,7 +17,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T8 | todo | P2 | 5 | 0% | |
 | T9 | todo | P2 | 4 | 0% | |
 | T10 | todo | P2 | 2 | 0% | |
-| T11 | in progress | P3 | 3 | 5% | Claude Code / claude-opus-5-5 |
 
 ### T1. Architecture document
 
@@ -107,15 +106,3 @@ A plugin export that runs over the core's index and returns diagnostics with edi
 ### T10. Plugin lockfile
 
 A committed lockfile of plugin ids, versions and package digests. Load refuses a plugin whose digest does not match. Done when tests cover write, read, a digest mismatch and a missing entry.
-
-### T11. Language-server and debug-adapter binaries through ketch
-
-Install and update language-server and debug-adapter binaries from GitHub releases with checksums, through ketch. Done when a test installs a pinned binary from a local fixture release, rejects a bad checksum, and the core resolves the installed path.
-
-Plan:
-
-1. Study ketch (read-only): library crate or CLI only, how it verifies checksums, how it can be pointed at a local release.
-2. Add a `kerf-tools` crate: a pinned tool spec (repo, version, per-platform asset, sha256, binary path), install through ketch into a Kerf-owned directory, and `resolve` returning the installed binary path the core spawns.
-3. Treat every download as untrusted: cap the asset size, verify sha256 before anything is unpacked or made executable, reject archive paths that escape the install directory.
-4. Tests against a local fixture release (no network): install a pinned binary, reject a bad checksum, resolve the path, refuse an oversize asset.
-5. Verify with `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`; update `toolchain.md`.
