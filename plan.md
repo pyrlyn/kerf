@@ -10,7 +10,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T2.1 | done | P1 | 3 | 100% | MiMo Desktop / mimo |
 | T2.2 | done | P1 | 3 | 100% | MiMo Desktop / mimo |
 | T2.3 | done | P1 | 1 | 100% | MiMo Desktop / mimo |
-| T3 | in progress | P1 | 4 | 0% | Claude Code / claude-opus-5-5 |
 | T4.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 
@@ -68,27 +67,6 @@ Plan:
 
 1. Add the workflow (Linux x86_64, macOS arm64, Windows x86_64 — no Intel Mac).
 2. Add the crates to `toolchain.md`, and to `rust.md` if they are new.
-
-### T3. Semantic layer: incremental parse and symbol index
-
-`crates/kerf-semantic`. Done when an edit re-parses only the changed file incrementally, the index updates only that file's symbols, and a test measures definition and reference recall on a labelled Rust fixture.
-
-It holds:
-
-- tree-sitter parsing per file, with incremental re-parse from edit events (the same shape as T2.1's);
-- a symbol index (definitions and references) from tree-sitter tags queries, updated per file.
-
-Rust is the first language. Scope stays within the 500-line task cap; more languages and LSP merging are later tasks.
-
-Plan:
-
-1. Study `rtok graph` (`apps/rtok`, tree-sitter tags into SQLite) for reuse.
-   - If its indexing can be shared, propose extracting it into a neutral crate in `packages/` and **ask the creator before touching rtok**.
-   - Otherwise write the minimum here and record why in the commit.
-2. Write incremental parsing behind an edit-event type that does not depend on `kerf-core`; T2 adapts to it later.
-3. Write the per-file index with tests for insert, edit and delete.
-4. Add a labelled fixture and a recall test, and report the numbers in the commit.
-5. Add the crates to `toolchain.md`, and to `rust.md` if they are new.
 
 ### T4. IDE permissions in `cox-plugin-api`
 
