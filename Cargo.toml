@@ -44,6 +44,12 @@ serde_json = "1.0.154"
 # Throwaway folder trees for the Workspace Trust and plugin lockfile tests (dev
 # only): removed on drop, so tests never touch a real home or each other's folders.
 tempfile = "3.27.0"
+# Line framing for `kerf-remote`'s UI <-> host wire: a maximum line length checked
+# before a line is buffered, on a `BytesMut` without a runtime (research.md §6).
+tokio-util = { version = "0.7.20", features = ["codec"] }
+# JSON-RPC 2.0 envelopes for `kerf-remote` (research.md §6). `lsp-server` was
+# rejected: it allocates whatever `Content-Length` the peer sends.
+jsonrpsee-types = "0.26.1"
 # Installed-size audit in `kerf-binaries`; does not follow symlinks by default.
 walkdir = "2.5.0"
 # Fixture digests in `kerf-binaries` tests.

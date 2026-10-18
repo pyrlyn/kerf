@@ -132,6 +132,21 @@ Plan:
 
 Result: `crates/kerf-inspect` with the `kerf_inspect` contract (`api = 1`), the runner behind the `Inspection` trait for T6 to implement, and `Report::apply_fix`. 14 integration tests on `tests/fixtures/deprecated.rs`.
 
+### T13. Remote development
+
+The plugin host and the language servers run next to the code; the UI stays local. First slice: a versioned UI ↔ host protocol and a headless host process that owns buffers and the semantic layer, over any byte stream (stdio, SSH). Every message and queue from the remote side is capped. Done when tests drive open, edit, undo and a symbol query through an in-memory transport and the protocol refuses an unknown major version.
+
+Execution plan:
+
+1. `research.md` §6: how Zed's remote server, VS Code Remote - SSH and `cox acp` split UI and host, with primary sources; pick the wire format and the framing crate.
+2. New crate `crates/kerf-remote` (crate map row in `docs/architecture.md`): JSON-RPC 2.0, one JSON object per line (ACP's stdio framing). Framing through `tokio-util`'s `LinesCodec` with a maximum line length, envelopes through `jsonrpsee-types`; no hand-written framing.
+3. `initialize` carries the protocol `{ major, minor }`; an unknown major is refused with a typed error and the connection ends. Methods: `buffer/open|read|edit|undo|redo|close`, `index/lookup`.
+4. Headless `Host` owns `kerf-core` buffers and `kerf-semantic` under a workspace root. Sans-IO `Connection` (bytes in, bytes out) with caps on message size (both directions), inbound queue depth, open buffers and buffer size; `serve(Read, Write)` drives it over any byte stream; `kerf-host` binary serves stdio, which SSH carries.
+5. Tests through an in-memory transport: open, edit, undo, symbol query, unknown major refused, oversized message refused, full queue answers busy.
+6. Verify: `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`.
+
+Result: `crates/kerf-remote` with protocol 1.0 (`initialize`, `buffer/open|read|edit|undo|redo|close`, `index/lookup`), a sans-IO `Connection`, the `Host`, and the `kerf-host` binary over stdio. Caps: 4 MiB per line in both directions (an over-cap answer becomes `REPLY_TOO_LARGE`), 64 queued requests (more answer `BUSY`), 256 buffers, 8 MiB per buffer, 10 000 symbols per lookup. 9 integration tests through an in-memory stream that hands out 7 bytes per read, plus one over the binary's stdio. About 565 lines of code without comments and blanks, over the 500-line cap: the caps and typed errors the card asks for are most of it, and the protocol cannot be tested apart from the host without a stub dispatcher that would add code.
+
 ### T7. Workspace Trust
 
 An untrusted folder starts no language servers, debuggers or tasks until the user trusts it. A trust store in the core, a check every process spawn goes through, and denial as a typed error. Done when tests show a spawn refused in an untrusted folder and allowed after trust is granted.

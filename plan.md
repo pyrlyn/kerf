@@ -9,7 +9,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T6 | todo | P1 | 4 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
 | T12 | todo | P2 | 5 | 0% | |
-| T13 | todo | P3 | 5 | 0% | |
 | T14 | todo | P3 | 4 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
 
@@ -24,10 +23,6 @@ Merge language-server answers into `kerf-semantic` where tree-sitter misses (mac
 ### T12. UI shell
 
 The first window. Pick Slint through slint-bindings or Flutter through slint_dart against each other, and record why in `research.md`. Rendering is a trait `kerf-core` defines (`docs/architecture.md` §2.1); the shell implements it in its own crate. Plugin UI and redraw-on-request come in later tasks. Done when a `kerf` binary opens a file, shows it, takes typing, undo and redo through `kerf-core`, and a headless UI test covers that path.
-
-### T13. Remote development
-
-The plugin host and the language servers run next to the code; the UI stays local. First slice: a versioned UI ↔ host protocol and a headless host process that owns buffers and the semantic layer, over any byte stream (stdio, SSH). Every message and queue from the remote side is capped. Done when tests drive open, edit, undo and a symbol query through an in-memory transport and the protocol refuses an unknown major version.
 
 ### T14. Local code completion
 
