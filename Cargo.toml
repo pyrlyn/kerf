@@ -23,3 +23,19 @@ tree-sitter = "0.27.1"
 tree-sitter-rust = "0.24.2"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
+# The extism plugin engine shared with cox and scull (worker thread, lanes,
+# deadlines, memory cap, package layout). A git pin, not a registry version:
+# it is not on crates.io, where the name `wasm_plugin_host` already belongs to
+# an unrelated crate.
+wasm-plugin-host = { git = "https://github.com/pyrlyn/crates", rev = "ca1be0671d65fcbf5acb3bac6b30d8d53c434877" }
+# cox's plugin contract: `PluginManifest` and the ABI payloads (`InitIn`,
+# `InitOut`). Kerf takes the contract as is; not on crates.io, so a git pin.
+cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac85bf24ce1114d5082e59d172e" }
+# JSON in and out of every plugin call, as the ABI defines it.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Reads `plugin.toml` into cox's `PluginManifest`; only `kerf-plugin-host`'s
+# manifest module touches it.
+toml = "1.1.8"
+# Per-test plugin roots in `kerf-plugin-host` tests.
+tempfile = "3.27.0"

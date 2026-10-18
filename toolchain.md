@@ -15,6 +15,11 @@
 | `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
 | `tree-sitter` | Cargo (workspace dep) | `kerf-semantic`: incremental re-parse from the old tree, and the query engine for tags | https://crates.io/crates/tree-sitter |
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
+| `wasm-plugin-host` | Cargo (workspace dep, git pin by `rev`) | `kerf-plugin-host`: the shared extism engine (worker per plugin, lanes, deadlines, memory cap, package layout); brings `extism` and `wasmtime`. Not on crates.io, where `wasm_plugin_host` is an unrelated crate | https://github.com/pyrlyn/crates/tree/main/rust/wasm-plugin-host |
+| `cox-plugin-api` | Cargo (workspace dep, git pin by `rev`) | `kerf-plugin-host`: cox's `plugin.toml` manifest and ABI payloads, taken as is. Not on crates.io | https://github.com/pyrlyn/cox/tree/main/crates/cox-plugin-api |
+| `serde`, `serde_json` | Cargo (workspace dep) | `kerf-plugin-host`: JSON in and out of every plugin call | https://crates.io/crates/serde |
+| `toml` | Cargo (workspace dep) | `kerf-plugin-host`: reads `plugin.toml` into cox's `PluginManifest` | https://crates.io/crates/toml |
+| `tempfile` | Cargo (workspace dev-dep) | `kerf-plugin-host` tests: per-test plugin roots | https://crates.io/crates/tempfile |
 
 ## Linkers
 
