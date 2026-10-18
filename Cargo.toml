@@ -16,3 +16,10 @@ repository = "https://github.com/pyrlyn/kerf"
 ropey = "1.6.1"
 # Typed errors in library crates (shared rule in the monorepo's rust.md).
 thiserror = "2"
+# Incremental parser and query engine for `kerf-semantic`: the parser Zed,
+# Helix and Neovim build on, and the only one that re-parses from an old tree.
+tree-sitter = "0.27.1"
+# Rust grammar and its tags query for `kerf-semantic`.
+tree-sitter-rust = "0.24.2"
+# Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
+kerf-core = { path = "crates/kerf-core" }
