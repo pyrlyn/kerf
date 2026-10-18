@@ -6,6 +6,7 @@
 | --- | --- | --- | --- |
 | rustc, cargo, rustfmt, clippy | mise (`mise.toml`, 1.99.0) | Build, format, lint | https://github.com/rust-lang/rust |
 | mise | system | Pins the Rust toolchain | https://github.com/jdx/mise |
+| Mesa lavapipe (`mesa-vulkan-drivers`) | apt, CI Linux runners only | Software Vulkan adapter for the `kerf-render` offscreen test | https://gitlab.freedesktop.org/mesa/mesa |
 
 ## Crates
 
@@ -23,6 +24,9 @@
 | `config-schema` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: fails when the committed schema is stale; shared crate from pyrlyn/crates | https://crates.io/crates/config-schema |
 | `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of the inspection payloads, as cox's ABI uses through extism; `kerf-core` (dev): writes the generated schema | https://crates.io/crates/serde_json |
 | `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` tests: per-test temporary directories | https://crates.io/crates/tempfile |
+| `wgpu` | Cargo (workspace dep) | `kerf-render`: one GPU API over Metal, D3D12 and Vulkan, and a surface from the host's native view | https://crates.io/crates/wgpu |
+| `glyphon` | Cargo (workspace dep) | `kerf-render`: draws `cosmic-text` layouts on wgpu through a glyph atlas; its re-exported `cosmic-text` shapes the text | https://crates.io/crates/glyphon |
+| `pollster` | Cargo (workspace dev dep) | `kerf-render` tests: block on wgpu's async adapter and device requests | https://crates.io/crates/pollster |
 
 ## Linkers
 

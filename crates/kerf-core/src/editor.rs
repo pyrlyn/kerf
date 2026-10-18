@@ -152,8 +152,11 @@ mod tests {
     struct Recorder(Vec<(String, usize, usize)>);
 
     impl Render for Recorder {
-        fn render(&mut self, frame: &Frame<'_>) {
+        type Error = std::convert::Infallible;
+
+        fn render(&mut self, frame: &Frame<'_>) -> Result<(), Self::Error> {
             self.0.push((frame.buffer.to_text(), frame.line, frame.col));
+            Ok(())
         }
     }
 
@@ -162,7 +165,7 @@ mod tests {
         let mut ed = Editor::new(TextBuffer::new());
         ed.insert("one\ntwo").unwrap();
         let mut out = Recorder::default();
-        out.render(&ed.frame());
+        out.render(&ed.frame()).unwrap();
         assert_eq!(out.0, vec![("one\ntwo".to_owned(), 1, 3)]);
     }
 }
