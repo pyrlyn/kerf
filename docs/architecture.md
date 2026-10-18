@@ -71,12 +71,13 @@ from `[workspace.dependencies]` (AGENTS.md hard rules).
 | `crates/kerf-core` | named in [plan.md](../plan.md) T2 | Text buffer, edit events, undo/redo, event loop with bounded queues. No UI toolkit binding — rendering is a trait the shell implements. |
 | `crates/kerf-semantic` | named in [plan.md](../plan.md) T3 | tree-sitter incremental parse, symbol index. Depends on the edit-event type, not on buffer internals. Language-server answers merge in through `merge_lsp` (T8), tagged by source. |
 | `crates/kerf-inspect` | named in [plan.md](../plan.md) T9 | Inspections: the versioned `kerf_inspect` JSON contract, a runner that caps and checks plugin replies, quick fixes as one undoable buffer edit. The plugin call is a trait the plugin host implements. |
+| `crates/kerf-complete` | named in [plan.md](../plan.md) T14 | Local inline completion: the text around the cursor to runa's fill-in-the-middle endpoint (`/v1/infill`), with a timeout, a reply size cap, a completion length cap and cancellation on the next edit. One worker thread; the event loop only polls. Chat and agents are not here: they go through `cox acp`. |
 | `crates/kerf-remote` | [done.md](../done.md) T13 | Remote development: the versioned UI ↔ host protocol (JSON-RPC 2.0, one object per line) and the headless host that owns buffers and the semantic layer next to the code; `kerf-host` serves it over stdio, which SSH carries. Every line, queue, buffer and answer is capped. |
 | `crates/kerf-render` | named in [plan.md](../plan.md) T12.2 | GPU editor renderer: lays out a `Frame` with `cosmic-text`, draws it with `wgpu` + `glyphon`, reports the caret rectangle. Implements the core's `Render`; the host supplies the theme. |
 | `crates/kerf-process` | approved, created by its first task | Spawn, supervise, cap and stop LSP, DAP and task processes. The only crate that creates OS processes for those services. |
 | `crates/kerf-lsp` | created in T8 | LSP client (JSON-RPC over stdio). Not a plugin. Until `kerf-process` exists it holds the per-server caps of §5.2 (message size, inbound queue, stderr ring, timeouts, shutdown budget) and starts processes only through its `Spawn` trait; process counts and the restart budget belong to `kerf-process`. |
 | `crates/kerf-dap` | approved, created by its first task | DAP client on top of `kerf-process`. Not a plugin. |
-| `crates/kerf-plugin` | approved, created by its first task | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
+| `crates/kerf-plugin` | created by T6 | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
 
 Shared engines Kerf depends on rather than copies:
 

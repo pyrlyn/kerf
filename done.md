@@ -113,6 +113,19 @@ Plan:
 
 Result: definition recall 1.000 and reference recall 1.000 on `tests/fixtures/recall.rs` (20 definitions, 27 references, no unlabelled hits). The upstream tags query alone reaches 0.750 and 0.519; the extra patterns cover path-qualified and turbofish calls, calls inside macro arguments, `impl Trait for Type`, trait method signatures, enum variants, `const` and `static`.
 
+### T6. Plugin host on `wasm-plugin-host`
+
+`crates/kerf-plugin`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on cox's ABI (`cox:host/v1`, extism), not a third copy of cox's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
+
+Plan:
+
+1. Depend on `wasm-plugin-host` and `cox-plugin-api` as git dependencies pinned by `rev` (`pyrlyn/crates`, `pyrlyn/cox`): neither is on crates.io, and the crates.io name `wasm_plugin_host` belongs to an unrelated crate, so the registry route in `rust.md` is closed.
+2. `crates/kerf-plugin`: `manifest` (the one module that reads `plugin.toml` into cox's `PluginManifest` with `toml`, then `validate`), `trigger` (activation triggers derived from `[[language_servers]]` and `[[debug_adapters]]`, read without running code), `host` (discover through `wasm-plugin-host`, a gate for siblings T7/T10, lazy load and `cox_init` on the first matching trigger, calls through the control or event lane, three consecutive failures or a failed `cox_init` disable the plugin).
+3. Tests with WAT fixtures: a manifest is read without loading wasm, a plugin activates only on its trigger, answers a call, a trapping plugin is disabled while another plugin keeps answering, project plugins are refused by the default gate, the notice list is capped.
+4. Verify: `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`. Rows in `toolchain.md`.
+
+Result: `crates/kerf-plugin` (`Plugins`, `Trigger`, `Gate`, `Manifest`). Tests: `crates/kerf-plugin/tests/plugins.rs` and unit tests in its modules.
+
 ### T8. LSP results in the semantic layer
 
 Merge language-server answers into `kerf-semantic` where tree-sitter misses (macro bodies, type-resolved references), tagged by source so tree-sitter results stay the base. Add at least one more tree-sitter language. Done when the recall test on the labelled fixture improves with a scripted language server and a second language has its own fixture.
@@ -165,6 +178,20 @@ Plan:
 5. Verify: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`.
 
 Result: `crates/kerf-inspect` with the `kerf_inspect` contract (`api = 1`), the runner behind the `Inspection` trait for T6 to implement, and `Report::apply_fix`. 14 integration tests on `tests/fixtures/deprecated.rs`.
+
+### T14. Local code completion
+
+A fill-in-the-middle endpoint in runa, used by the editor. Chat and agents go through `cox acp`, not here. The runa side is a matching task in runa's `plan.md`; the Kerf side is a completion client with a timeout, a size cap and cancellation on the next edit. Done when Kerf's client passes tests against a fake endpoint and runa's endpoint has its own tests.
+
+Plan:
+
+1. runa (own repo, own worktree and PR): task P20.1 in runa's `plan.md`, a `POST /v1/infill` with llama-server's `/infill` fields (`input_prefix`, `input_suffix`, `n_predict`; reply `content`) built on the model's own FIM tokens. A model without FIM tokens gets a 400, never a chat-template imitation.
+2. `crates/kerf-complete`: blocking `ureq` client (no async runtime in Kerf), run on a worker thread so the event loop only polls. Context is the prefix and suffix around the cursor read from `kerf-core`'s `TextBuffer`, each capped in bytes and snapped to char boundaries.
+3. Hard caps on everything runa returns: a request timeout, a response body cap, a completion length cap, JSON shape checked. A `Completer` holds at most one request and cancels it on the next `EditEvent`; a cancelled or stale result is never delivered.
+4. Tests against a fake endpoint (`httpmock`): happy path, timeout, size cap, cancel on edit, malformed reply. fmt, clippy `-D warnings`, test.
+5. Crate map row in `docs/architecture.md`, `toolchain.md` rows for `ureq` and `httpmock`.
+
+Result: runa [pyrlyn/runa#101](https://github.com/pyrlyn/runa/pull/101) adds `POST /v1/infill` (runa P20.1). `crates/kerf-complete` has `Context::around` (prefix tail and suffix head from a `TextBuffer`, snapped to character boundaries), `Client` (timeout, reply byte limit, completion cap, `content` shape check, no redirects or env proxy, API key redacted in `Debug`) and `Completer` (one worker thread, generation counter, `on_edit` cancels, only the newest queued request is sent). 8 unit tests and 9 tests against `httpmock`.
 
 ### T13. Remote development
 
