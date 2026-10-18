@@ -9,7 +9,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T4.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T6 | todo | P1 | 4 | 0% | |
-| T7 | todo | P1 | 3 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
 | T9 | todo | P2 | 4 | 0% | |
 | T10 | todo | P2 | 2 | 0% | |
@@ -36,10 +35,6 @@ The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-
 ### T6. Plugin host on `wasm-plugin-host`
 
 `crates/kerf-plugin-host`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on cox's ABI (`cox:host/v1`, extism), not a third copy of cox's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
-
-### T7. Workspace Trust
-
-An untrusted folder starts no language servers, debuggers or tasks until the user trusts it. A trust store in the core, a check every process spawn goes through, and denial as a typed error. Done when tests show a spawn refused in an untrusted folder and allowed after trust is granted.
 
 ### T8. LSP results in the semantic layer
 

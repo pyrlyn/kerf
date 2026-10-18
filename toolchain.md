@@ -15,6 +15,13 @@
 | `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
 | `tree-sitter` | Cargo (workspace dep) | `kerf-semantic`: incremental re-parse from the old tree, and the query engine for tags | https://crates.io/crates/tree-sitter |
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
+| `fs-kit` | Cargo (workspace dep) | `kerf-core` trust file: canonical paths without the Windows `\\?\` prefix, case-folded prefix checks, atomic writes | https://crates.io/crates/fs-kit |
+| `dirs` | Cargo (workspace dep) | `kerf-core`: the OS config directory for the trust file | https://crates.io/crates/dirs |
+| `serde` | Cargo (workspace dep) | `kerf-core`: typed trust file | https://crates.io/crates/serde |
+| `toml` | Cargo (workspace dep) | `kerf-core`: trust file format | https://crates.io/crates/toml |
+| `schemars` | Cargo (workspace dev dep) | `kerf-core`: JSON Schema of the trust file, checked by a test | https://crates.io/crates/schemars |
+| `serde_json` | Cargo (workspace dev dep) | `kerf-core`: writes the generated schema | https://crates.io/crates/serde_json |
+| `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop | https://crates.io/crates/tempfile |
 
 ## Linkers
 
