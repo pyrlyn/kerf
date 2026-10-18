@@ -10,3 +10,4 @@ license = "GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free"
 repository = "https://github.com/pyrlyn/kerf"
 
 [workspace.dependencies]
+thiserror = "2"
