@@ -2,7 +2,7 @@
 
 The contracts every other Kerf task builds on: the core boundary, the plugin
 lifecycle on cox's ABI, the IDE permission set and the LSP/DAP manifest tables
-(input for T4.1 and T4.2), process supervision, Workspace Trust and interface
+(T4.1 and T4.2), process supervision, Workspace Trust and interface
 versioning.
 
 Sources were checked on 2026-10-18 unless a version is given. Facts without a
@@ -172,8 +172,8 @@ language plugin loads when its language appears:
 
 | Trigger source | Fires when |
 | --- | --- |
-| `[[language_servers]]` `languages` | A buffer of that language opens (and Workspace Trust allows — §6). |
-| `[[debug_adapters]]` `types` | A debug session for that type starts. |
+| `[[language_servers]]` `languages` / `globs` | A buffer of that language, or a path matching a glob, opens (and Workspace Trust allows — §6). |
+| `[[debug_adapters]]` `languages` | A debug session for that language starts. |
 | `ui.commands` / `terminal.keys` | The user invokes the command or key. |
 | `capabilities.tools` / `hooks` / `events` | First use of the tool, or the subscribed event fires — these have no static trigger of their own. |
 
@@ -189,7 +189,7 @@ after the grant is checked. A plugin returns (declares) the command; it never
 runs it ([research.md §3](../research.md#3-what-kerf-takes) item 3,
 [AGENTS.md](../AGENTS.md)).
 
-## 4. IDE permission set and manifest tables (input for T4.1 and T4.2)
+## 4. IDE permission set and manifest tables (T4.1 and T4.2)
 
 Permission families are settled in
 [research.md §1](../research.md#1-conclusion): **buffer, LSP, DAP, index,
@@ -197,80 +197,81 @@ terminal, git**. Kerf extends cox's permission set; it does not replace
 cox's existing families (`events`, `hooks`, `tools`, `invoke`, `net`, `fs`,
 `decide`, `ui.*`, `model`, `kv`, `context`, …). A Kerf plugin may use both.
 
+The contract lives in cox's `cox-plugin-api` and was landed in two steps:
+[pyrlyn/cox#367](https://github.com/pyrlyn/cox/pull/367) added
+`[capabilities.ide]` and the two process tables, and
+[pyrlyn/cox#385](https://github.com/pyrlyn/cox/pull/385) (cox T380)
+split `buffer` and `git` into read and write levels and made every process
+entry routable. This section describes what cox now has; cox's
+`docs/design/plugins.md` §16 and §7e are the field-level reference.
+
 ### 4.1 Families mapped to cox concepts
 
-| Family | Grant line | cox concept | What it allows |
-| --- | --- | --- | --- |
-| buffer | `buffer.read`, `buffer.edit` (**new** flags) | **new** — not `fs.*` (buffers may be unsaved) and not `context` (that is a session snapshot, cox §5) | Read open buffer text; apply edits through the core's undoable edit path. |
-| LSP | `lsp:<name> <command args>` (**new** family) | Shape is cox's `mcp:` line (cox §3, §7c). The family is **new**. | Declare a language server the core will spawn. |
-| DAP | `dap:<name> <command args>` (**new** family) | Shape is cox's `mcp:` / `agent:` line. The family is **new**. | Declare a debug adapter the core will spawn. |
-| index | `index` (**new** flag) | **new** — not `context` | Query Kerf's semantic layer (symbols, definitions, references). Read-only. |
-| terminal | `terminal.io` (**new** flag) | **new** — distinct from cox's `terminal.keys` (leader keys, cox §15.3) | Open an integrated terminal the core owns and write input to it. |
-| git | `git.read`, `git.write` (**new** flags) | **new** | Read repository state (`status`, `diff`, `log`); `git.write` covers stage/commit/checkout-style mutations. The core runs `git`, never the plugin. |
+All IDE classes sit in one cox table, `[capabilities.ide]`, and every grant
+line starts with `ide.`, so none of them re-binds an existing cox name.
 
-Every row above is either a new flag/line or a new family. There is no Kerf
-permission that silently re-binds an existing cox name to a different meaning.
-The one near-collision is `terminal`: cox already has
-`[capabilities.terminal]` as `TerminalCaps { keys }`. Kerf **adds an `io`
-field to that table** and uses `terminal.io` in grant lines, rather than
-overloading `terminal.keys` or introducing a second table with the same
-Serde name (cox `manifest.rs` `TerminalCaps`).
+| Family | Manifest | Grant line | What it allows |
+| --- | --- | --- | --- |
+| buffer | `ide.buffer = "read"` or `"edit"` | `ide.buffer.read`; `"edit"` adds `ide.buffer.edit` | Read open buffer text, unsaved text included; `edit` also applies edits through the core's undoable edit path. Not `fs.*` (buffers may be unsaved) and not `context` (a session snapshot, cox §5). |
+| LSP | `ide.lsp = true`, plus `[[language_servers]]` entries | `ide.lsp`, plus one `lsp:<name> <command args>` per entry | `ide.lsp` lets the plugin's wasm act as a client of servers the core spawned; each `lsp:` line approves one process the core spawns. The line has the shape of cox's `mcp:` line (cox §3, §7c). |
+| DAP | `ide.dap = true`, plus `[[debug_adapters]]` entries | `ide.dap`, plus one `dap:<name> <command args>` per entry | The same split for debug adapters. |
+| index | `ide.index = true` | `ide.index` | Query Kerf's semantic layer (symbols, definitions, references). Read-only. Not `context`. |
+| terminal | `ide.terminal = true` | `ide.terminal` | Open an integrated terminal the core owns and write input to it. Distinct from cox's `terminal.keys` (leader keys, cox §15.3); neither line covers the other. |
+| git | `ide.git = "read"` or `"write"` | `ide.git.read`; `"write"` adds `ide.git.write` | `read`: `status`, `diff`, `log`. `write`: stage and commit only (§8 decision 6). The core runs `git`, never the plugin. |
+
+A write level also lists its read line, so widening `read` to `edit` or
+`write` adds a line and the digest-bound grant asks again. `buffer = true`,
+`git = true` and any level word other than these are parse errors, never a
+guess at a level.
 
 ### 4.2 Manifest tables
 
-Both tables are **new** to `PluginManifest` and modelled on `[[mcp]]`
+`[[language_servers]]` and `[[debug_adapters]]` are modelled on `[[mcp]]`
 (cox `McpDecl`, `manifest.rs`): a name, a command inside the package or on
-PATH, and args. One approval line each (like `mcp:<name> <command args>`).
+PATH, and args. One approval line each.
 
 ```toml
 api = 1
 id = "rust-tools"
 # ... standard fields ...
 
-[capabilities]
-# cox's existing fields, unchanged (events, hooks, tools, invoke, context,
-# kv, model, net, fs, decide, ui, ...)
-buffer = { read = true, edit = false }   # NEW (T4.1)
-index = true                             # NEW (T4.1)
-git = { read = true, write = false }     # NEW (T4.1)
+[capabilities.ide]
+buffer = "read"      # or "edit"
+index = true
+git = "read"         # or "write": stage and commit only
+terminal = true
+lsp = true           # client of the servers below
+dap = false
 
-[capabilities.terminal]                  # cox TerminalCaps
-keys = false
-io = true                                # NEW (T4.1): integrated terminal
-
-# NEW (T4.2) — like [[mcp]] (cox PL§7c); the plugin declares the command,
-# the core checks permissions and spawns it.
 [[language_servers]]
 name = "rust-analyzer"
-command = "rust-analyzer"                # package-relative or PATH program
-args = []
 languages = ["rust"]                     # activation + routing
-root_markers = ["Cargo.toml"]            # workspace root discovery
+globs = ["**/*.rs"]                      # optional path routing
+command = "bin/rust-analyzer"            # package-relative or PATH program
+args = []
+env = { RUST_LOG = "error" }             # literals only; the child starts from an empty env
+config = { checkOnSave = true }          # opaque, passed on initialize
 
 [[debug_adapters]]
 name = "codelldb"
-command = "bin/codelldb-${target}"       # inside the package, or on PATH
-args = ["--stdio"]
-types = ["lldb"]                         # DAP launch-config type names
+languages = ["rust"]                     # activation
+command = "bin/codelldb"                 # inside the package, or on PATH
+args = ["--port", "0"]
 ```
 
-Field notes (what T4.1 / T4.2 implement):
+Field notes (cox `manifest.rs`, checked by `PluginManifest::validate`):
 
 | Field | Kind | Rules |
 | --- | --- | --- |
-| `capabilities.buffer` | **new** `{ read, edit }` | `edit` may be granted without `read` only if a use case needs it; default both off. |
-| `capabilities.index` | **new** `bool` | Read-only queries of the core's index. |
-| `capabilities.git` | **new** `{ read, write }` | `write` is the dangerous half; approval shows it in words. |
-| `capabilities.terminal.io` | **new** `bool` on cox's `TerminalCaps` | Integrated-terminal access; not surface-gated like `keys`. |
-| `[[language_servers]]` | **new** `Vec<LanguageServerDecl>` | `name` fits `[a-zA-Z0-9_-]{1,64}` after prefixing; `command` + `args` as `[[mcp]]`, with `command` **required** (unlike `McpDecl`, which may use `url` instead); `languages` non-empty; `root_markers` optional path segments. No URL transport — LSP is a process. |
-| `[[debug_adapters]]` | **new** `Vec<DebugAdapterDecl>` | Same command rules; `types` non-empty. |
+| `ide.buffer` | `"read"` \| `"edit"`, absent = none | `edit` implies `read`. |
+| `ide.git` | `"read"` \| `"write"`, absent = none | `write` is the dangerous half: stage and commit only. |
+| `ide.lsp`, `ide.dap`, `ide.index`, `ide.terminal` | `bool` | Absent and `false` are the same. |
+| `[[language_servers]]` | `Vec<LanguageServerDecl>` | `name` unique and valid after `<id>-` prefixing; `command` required and non-empty; `env` keys are env var names; at least one of `languages` or `globs`. No URL transport — LSP is a process. |
+| `[[debug_adapters]]` | `Vec<DebugAdapterDecl>` | Same name, command and `env` rules; `languages` non-empty. |
 
-Grant lines added to cox's list (cox §3):
-
-- `buffer.read`, `buffer.edit`, `index`, `terminal.io`, `git.read`,
-  `git.write` — flags, like `context` / `kv`.
-- `lsp:<name> <command args>` and `dap:<name> <command args>` — scoped, like
-  `mcp:<name> <command args>`.
+A package whose only content is these tables (with `[[mcp]]`, `[[agents]]`,
+`[[skills]]`) needs no `wasm`. Workspace-root discovery (`root_markers`) is
+not in the table yet; it is added by the first task that needs it.
 
 Each entry is one approval line. An update that adds or widens a line asks
 again (cox §3, digest-bound grants).
@@ -286,8 +287,8 @@ again (cox §3, digest-bound grants).
    checks the grant line, wraps the argv in the sandbox policy and spawns the
    process. The plugin is not in the spawn path.
 4. The plugin's wasm code may still do plugin things (diagnostics decorations
-   via `buffer`/`index`, a status segment via `ui`) — it never proxies LSP
-   traffic. The LSP client lives in `kerf-lsp`.
+   via `ide.buffer`/`ide.index`, a status segment via `ui`) — it never
+   proxies LSP traffic. The LSP client lives in `kerf-lsp`.
 
 Runtime command resolution (Zed's `language-server-command` returns
 `{command, args, env}` at run time —
@@ -303,14 +304,15 @@ calling export, like every cox host function):
 
 | Host fn | Grant | Notes |
 | --- | --- | --- |
-| `kerf_buffer_read(id)` | `buffer.read` | Current buffer text, capped. |
-| `kerf_buffer_edit(id, edits)` | `buffer.edit` | Goes through the core's undoable edit path; emits edit events. |
-| `kerf_index_query(query)` | `index` | Symbols/definitions/references from `kerf-semantic`. |
-| `kerf_git_read(op, args)` | `git.read` | Core runs `git`; args are a closed enum, not a shell string. |
-| `kerf_git_write(op, args)` | `git.write` | Same; never `Command` with a free-form string. |
-| `kerf_terminal_open/write/close` | `terminal.io` | Session the core owns; output is untrusted and capped. |
+| `kerf_buffer_read(id)` | `ide.buffer.read` | Current buffer text, capped. |
+| `kerf_buffer_edit(id, edits)` | `ide.buffer.edit` | Goes through the core's undoable edit path; emits edit events. |
+| `kerf_index_query(query)` | `ide.index` | Symbols/definitions/references from `kerf-semantic`. |
+| `kerf_git_read(op, args)` | `ide.git.read` | Core runs `git`; args are a closed enum, not a shell string. |
+| `kerf_git_write(op, args)` | `ide.git.write` | Stage and commit only; never `Command` with a free-form string. |
+| `kerf_terminal_open/write/close` | `ide.terminal` | Session the core owns; output is untrusted and capped. |
 
-Exact JSON shapes land with T4.1; names above are the contract's vocabulary.
+Exact JSON shapes land with the task that builds `kerf:host/v1`; names above
+are the contract's vocabulary.
 
 ## 5. LSP and DAP process supervision
 
@@ -423,13 +425,13 @@ versioned WIT, which Kerf deliberately does *not* take):
    breaking change raises `api`; the host supports the current major and the
    previous one for one release (cox §4).
 3. **The manifest is the exception.** `deny_unknown_fields` means an older
-   host refuses a package that uses a newer field (`terminal.io`,
+   host refuses a package that uses a newer field (`[capabilities.ide]`,
    `[[language_servers]]`, …) and skips it with a notice. That strictness is
    a trust property (a misspelt capability must not grant less or more). An
    old manifest loads unchanged in a new host (cox §15.7).
 4. **Grants are per `(plugin id, scope, digest)`.** A capability list that is
    not the documented string array grants nothing (cox §3). New grant lines
-   (`buffer.edit`, `lsp:…`) appear in that array. An older host that does not
+   (`ide.buffer.edit`, `lsp:…`) appear in that array. An older host that does not
    know a new manifest field refuses the package at parse time (point 3), so
    it never has to interpret a grant line it does not know. Wider
    capabilities re-ask.
@@ -461,17 +463,22 @@ new task, not by editing this list silently.
    settings later; the hard upper bounds stay.
 5. **Builds and tasks: user- and debug-initiated only.** No seventh family in
    v1.
-6. **`git.write`: stage and commit only.** Checkout, branch, reset and push
-   are not grantable to plugins in v1; they change the working tree or the
-   remote under the user. `git.read` covers `status`, `diff`, `log`.
+6. **`ide.git.write`: stage and commit only.** Checkout, branch, reset and
+   push are not grantable to plugins in v1; they change the working tree or
+   the remote under the user. `ide.git.read` covers `status`, `diff`, `log`.
+   (Revised by T4: the line names follow cox's `ide.` table, §4.1.)
 7. **Workspace Trust store:** a user-level file in the OS config directory,
    never in the repository. Multi-root workspaces trust **per root**, as in
    VS Code; trusting one root trusts nothing else.
-8. **`kerf:host/v1`: confirmed.** IDE host functions live there;
-   `cox:host/v1` stays unchanged (§7 point 1).
-9. **Terminal: `terminal.io` on cox's `TerminalCaps`, confirmed.** One table,
-   two flags with distinct meanings (§4.1); no second table with a clashing
-   Serde name.
+8. **`kerf:host/v1`: confirmed.** IDE host functions live there, each gated
+   by an `ide.*` grant line (§4.4); `cox:host/v1` stays unchanged (§7
+   point 1).
+9. **Terminal: `ide.terminal` in cox's `[capabilities.ide]`.** Revised by
+   T4: cox landed the IDE classes as one table of their own
+   ([pyrlyn/cox#367](https://github.com/pyrlyn/cox/pull/367)), so the
+   integrated terminal is `ide.terminal` rather than an `io` flag on
+   `TerminalCaps`. It never covers cox's `terminal.keys`, nor the reverse
+   (§4.1).
 10. **LSP merge points:** T8 defines the merge API in `kerf-semantic`, tagged
     by source, definitions and references first. Diagnostics are not index
     data and stay a separate stream.
