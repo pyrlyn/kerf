@@ -16,7 +16,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T7 | todo | P1 | 3 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
 | T9 | todo | P2 | 4 | 0% | |
-| T10 | in progress | P2 | 2 | 10% | Claude Code / opus-5.5 |
 | T11 | todo | P3 | 3 | 0% | |
 
 ### T1. Architecture document
@@ -103,19 +102,6 @@ Merge language-server answers into `kerf-semantic` where tree-sitter misses (mac
 ### T9. Inspections with quick fixes
 
 A plugin export that runs over the core's index and returns diagnostics with edits, as in IntelliJ. The contract (JSON in and out, versioned), a core-side runner that validates and caps what a plugin returns, and applying a fix as one undoable edit. Done when a test inspection reports a problem on a fixture and its fix applies and undoes.
-
-### T10. Plugin lockfile
-
-A committed lockfile of plugin ids, versions and package digests. Load refuses a plugin whose digest does not match. Done when tests cover write, read, a digest mismatch and a missing entry.
-
-Plan:
-
-1. Reuse from cox: it has no lockfile, but it has the package digest (`cox-plugin` `package_digest`, the same function `wasm-plugin-host` carries: SHA-256 hex over the package tree). The lockfile stores that digest; it does not define a second one.
-2. New crate `crates/kerf-plugin-lock`, the one module that reads and writes the lockfile: `format = 1` and `[[plugin]]` entries of `id`, `version`, `digest`, TOML through `toml`, written atomically through `fs-kit`, sorted by id.
-3. Validation in the types (`deny_unknown_fields`, a 64-hex digest newtype, duplicate ids refused); the file is repository input, so read with a size cap and an entry cap.
-4. `Lockfile::verify(id, version, digest)` for the plugin host (T6) to call before it loads a package; mismatch and missing entry are typed errors.
-5. JSON Schema committed under `docs/` and checked by a test through `config-schema`.
-6. Tests: write, read, digest mismatch, version mismatch, missing entry, malformed file, oversized file. Verify with `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`.
 
 ### T11. Language-server and debug-adapter binaries through ketch
 
