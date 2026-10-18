@@ -87,6 +87,26 @@ Plan:
 3. `crates/kerf-core/src/editor.rs`: `Editor`; `TextBuffer::line_col`, `prev_boundary`, `next_boundary` for whole-character steps.
 4. Verify: unit tests for each editor operation and a recording `Render`; `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
 
+### T12.2. GPU editor renderer
+
+A crate that implements `kerf_core::Render` on `wgpu` + `cosmic-text` + `glyphon` (`research.md` §7): the buffer text, a surface size and scale factor, and a `Theme` the host passes in (font family and size, background, text and selection colours, syntax colours). It reports the caret rectangle so a host can draw the system caret; it draws its own only when the host asks. Done when a test lays out a frame and checks the caret position without a GPU, and a test renders a frame offscreen and reads pixels back on the adapter the CI runner offers (or says in the card why a runner cannot).
+
+Plan:
+
+1. `crates/kerf-render` (row in `docs/architecture.md` §2.2); `wgpu`, `glyphon` (and its `cosmic-text`) in `[workspace.dependencies]`, rows in `toolchain.md`.
+2. `Theme` (font family, size, line height, colours) and `Layout`: shapes the frame's text with `cosmic-text` at the host's scale factor and returns the caret rectangle in physical pixels. No GPU, unit-tested: caret on line 2, column after a wide character, scale 2.
+3. `GpuRenderer` on a `wgpu::Device`/`Queue` and a target texture format: clears to the background, draws the text with `glyphon`, and a caret quad only when `Theme::draw_caret` is set. `impl Render` draws into a surface; an offscreen `render_to(&TextureView)` serves tests and hosts that own the texture.
+4. Offscreen test: render into a texture, copy it to a buffer, read pixels back, check background and text colours. Skips with a message when no adapter exists; CI installs Mesa's lavapipe on Linux, Windows has WARP, macOS arm64 has Metal.
+5. fmt, clippy `-D warnings`, tests; CI green on all three runners.
+
+Outcome:
+
+- `crates/kerf-render`: `Theme`, `Size`, `Rect`; `Layout` (GPU-free, returns the caret rectangle); `GpuRenderer::draw` into any texture view; `Offscreen`, a renderer with its own texture that implements `Render`. The caret is a solid custom glyph through `glyphon`'s pipeline, drawn only with `draw_caret`.
+- Layout lines are built from the core's lines, split the way ropey splits them (`\n\r`, U+2028, NEL), so `Frame::line` indexes the layout; `cosmic-text` alone splits only on CR and LF. Host numbers (scale, sizes, caret width) are clamped, since they cross the C ABI.
+- `Render` gained `type Error`: a GPU draw can fail (atlas full, evicted glyph).
+- Left out: selection and syntax colours, because `Frame` carries no selection or highlight spans yet (noted on T12.4). The `wgpu` surface over an `NSView` comes with the C ABI in T12.3, where the host handle exists.
+- Tests: six layout tests without a GPU, and `tests/offscreen.rs`, which renders on the machine's adapter and reads pixels back (background, text, caret on and off). CI installs Mesa's lavapipe on Linux and sets `KERF_REQUIRE_GPU`, so a runner without an adapter fails instead of skipping.
+
 ### T3. Semantic layer: incremental parse and symbol index
 
 `crates/kerf-semantic`. Done when an edit re-parses only the changed file incrementally, the index updates only that file's symbols, and a test measures definition and reference recall on a labelled Rust fixture.

@@ -66,7 +66,7 @@ walkdir = "2.5.0"
 # Fixture digests in `kerf-binaries` tests.
 sha2 = "0.11.1"
 hex = "0.4.3"
-# GPU API for the editor renderer (`kerf-render`, research.md §6): Metal,
+# GPU API for the editor renderer (`kerf-render`, research.md §7): Metal,
 # D3D12 and Vulkan behind one API, and a surface from a host's native view.
 wgpu = "30.0.1"
 # Text on wgpu for `kerf-render`: draws `cosmic-text` layouts (shaping,

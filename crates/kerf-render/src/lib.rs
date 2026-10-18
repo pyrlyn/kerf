@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! Kerf's GPU editor renderer (`research.md` §6): lays out a
+//! Kerf's GPU editor renderer (`research.md` §7): lays out a
 //! [`kerf_core::Frame`] with `cosmic-text` and draws it with `wgpu` and
 //! `glyphon` inside a view the native host owns.
 //!
