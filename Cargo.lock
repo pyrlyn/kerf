@@ -1696,6 +1696,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kerf-ffi"
+version = "0.0.0"
+dependencies = [
+ "cbindgen",
+ "kerf-core",
+ "kerf-render",
+ "pollster",
+ "tempfile",
+ "wgpu",
+]
+
+[[package]]
 name = "kerf-inspect"
 version = "0.0.0"
 dependencies = [

@@ -28,7 +28,7 @@
 | `schemars` | Cargo (workspace dev dep) | `kerf-core`: JSON Schema of the trust file, checked by a test; `kerf-plugin-lock` tests: the lockfile's JSON Schema from its types | https://crates.io/crates/schemars |
 | `config-schema` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: fails when the committed schema is stale; shared crate from pyrlyn/crates | https://crates.io/crates/config-schema |
 | `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of the inspection payloads, as cox's ABI uses through extism; `kerf-lsp`: LSP messages and the scripted server's answer files; `kerf-remote`: protocol params and results; `kerf-core` (dev): writes the generated schema; `kerf-plugin`: plugin call payloads | https://crates.io/crates/serde_json |
-| `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` and `kerf-binaries` tests: per-test temporary directories; `kerf-remote` tests: workspace roots; `kerf-plugin` tests: per-test plugin roots | https://crates.io/crates/tempfile |
+| `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` and `kerf-binaries` tests: per-test temporary directories; `kerf-remote` tests: workspace roots; `kerf-plugin` tests: per-test plugin roots; `kerf-ffi` tests: the file a host opens | https://crates.io/crates/tempfile |
 | `walkdir` | Cargo (workspace dep) | `kerf-binaries`: installed-size audit without following symlinks | https://crates.io/crates/walkdir |
 | `sha2` | Cargo (workspace dev dep) | `kerf-binaries` tests: fixture asset digests | https://crates.io/crates/sha2 |
 | `hex` | Cargo (workspace dev dep) | `kerf-binaries` tests: hex form of fixture digests | https://crates.io/crates/hex |
@@ -36,7 +36,8 @@
 | `jsonrpsee-types` | Cargo (workspace dep) | `kerf-remote`: JSON-RPC 2.0 request, response and error envelopes | https://crates.io/crates/jsonrpsee-types |
 | `wgpu` | Cargo (workspace dep) | `kerf-render`: one GPU API over Metal, D3D12 and Vulkan, and a surface from the host's native view | https://crates.io/crates/wgpu |
 | `glyphon` | Cargo (workspace dep) | `kerf-render`: draws `cosmic-text` layouts on wgpu through a glyph atlas; its re-exported `cosmic-text` shapes the text | https://crates.io/crates/glyphon |
-| `pollster` | Cargo (workspace dev dep) | `kerf-render` tests: block on wgpu's async adapter and device requests | https://crates.io/crates/pollster |
+| `pollster` | Cargo (workspace dep) | `kerf-ffi`: blocks on wgpu's async adapter and device requests behind a synchronous C call; `kerf-render` tests: the same for the offscreen test | https://crates.io/crates/pollster |
+| `cbindgen` | Cargo (workspace dev dep, default features off) | `kerf-ffi` tests: generate `include/kerf.h` from the Rust declarations and fail when the committed header is stale | https://crates.io/crates/cbindgen |
 | `ureq` | Cargo (workspace dep) | `kerf-complete`: blocking HTTP for fill-in-the-middle requests on a worker thread; whole-call timeout and body limit built in, no async runtime; gzip off so the limit caps decoded bytes | https://crates.io/crates/ureq |
 | `httpmock` | Cargo (workspace dev dep) | `kerf-complete` tests: a fake `/v1/infill` with per-mock delays, bodies and call counts (timeout, size cap, cancellation) | https://crates.io/crates/httpmock |
 

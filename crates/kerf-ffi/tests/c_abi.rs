@@ -1,0 +1,222 @@
+// Copyright (c) 2026 Ivan Tugay
+// SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
+// Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
+
+//! The whole host path through the C functions only: open a file, type,
+//! delete, undo, redo, render offscreen, place the caret, read pixels; and
+//! the inputs a broken host can send.
+
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// Every call here plays the host within the header's contract; a SAFETY
+// note per call would only repeat the header.
+#![allow(clippy::undocumented_unsafe_blocks)]
+
+use std::ptr::{null, null_mut};
+
+use kerf_ffi::*;
+
+/// Set in CI, where a missing adapter is a broken runner, not a skip.
+const REQUIRE: &str = "KERF_REQUIRE_GPU";
+
+fn open(path: &std::path::Path) -> (KerfStatus, *mut KerfEditor) {
+    let path = path.to_str().unwrap();
+    let mut ed = null_mut();
+    let status = unsafe { kerf_editor_open(path.as_ptr(), path.len(), &mut ed) };
+    (status, ed)
+}
+
+fn text(ed: *mut KerfEditor) -> String {
+    let mut len = 0;
+    assert_eq!(
+        unsafe { kerf_editor_copy_text(ed, null_mut(), 0, &mut len) },
+        if len == 0 {
+            KerfStatus::Ok
+        } else {
+            KerfStatus::TooLarge
+        }
+    );
+    let mut buf = vec![0u8; len];
+    assert_eq!(
+        unsafe { kerf_editor_copy_text(ed, buf.as_mut_ptr(), buf.len(), &mut len) },
+        KerfStatus::Ok
+    );
+    String::from_utf8(buf).unwrap()
+}
+
+fn insert(ed: *mut KerfEditor, s: &str) -> KerfStatus {
+    unsafe { kerf_editor_insert(ed, s.as_ptr(), s.len()) }
+}
+
+fn command(ed: *mut KerfEditor, c: u32) -> KerfStatus {
+    unsafe { kerf_editor_command(ed, c) }
+}
+
+#[test]
+fn host_opens_edits_and_renders_through_the_c_functions() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("main.rs");
+    std::fs::write(&file, "fn main() {}\n").unwrap();
+    let (status, ed) = open(&file);
+    assert_eq!(status, KerfStatus::Ok);
+
+    assert_eq!(command(ed, KERF_COMMAND_LEFT), KerfStatus::Nothing);
+    assert_eq!(insert(ed, "// é\n"), KerfStatus::Ok);
+    assert_eq!(command(ed, KERF_COMMAND_BACKSPACE), KerfStatus::Ok);
+    assert_eq!(text(ed), "// éfn main() {}\n");
+    assert_eq!(command(ed, KERF_COMMAND_UNDO), KerfStatus::Ok);
+    assert_eq!(text(ed), "// é\nfn main() {}\n");
+    assert_eq!(command(ed, KERF_COMMAND_REDO), KerfStatus::Ok);
+    assert_eq!(command(ed, KERF_COMMAND_REDO), KerfStatus::Nothing);
+    let mut cursor = 0;
+    assert_eq!(
+        unsafe { kerf_editor_cursor(ed, &mut cursor) },
+        KerfStatus::Ok
+    );
+    assert_eq!(cursor, "// é".len());
+
+    let family = "Menlo";
+    let theme = KerfTheme {
+        font_family: family.as_ptr(),
+        font_family_len: family.len(),
+        font_size: 13.0,
+        line_height: 17.0,
+        background: [30, 30, 30, 255],
+        text: [250, 250, 250, 255],
+        caret: [255, 0, 0, 255],
+        caret_width: 2.0,
+        draw_caret: 1,
+    };
+    let mut view = null_mut();
+    match unsafe { kerf_view_new_offscreen(160, 40, 2.0, &theme, &mut view) } {
+        KerfStatus::Ok => {}
+        KerfStatus::Gpu if std::env::var_os(REQUIRE).is_none() => {
+            eprintln!("no GPU adapter, render half skipped");
+            unsafe { kerf_editor_free(ed) };
+            return;
+        }
+        other => panic!("offscreen view: {other:?}"),
+    }
+    assert_eq!(unsafe { kerf_view_render(view, ed) }, KerfStatus::Ok);
+    let mut caret = KerfRect {
+        x: 0.0,
+        y: 0.0,
+        width: 0.0,
+        height: 0.0,
+    };
+    assert_eq!(unsafe { kerf_view_caret(view, &mut caret) }, KerfStatus::Ok);
+    // Line 0 after "// é", at scale 2: one 34 px line, a 4 px caret.
+    assert_eq!((caret.y, caret.height, caret.width), (0.0, 34.0, 4.0));
+    assert!(caret.x > 0.0);
+
+    let mut len = 0;
+    let mut short = [0u8; 4];
+    let status = unsafe { kerf_view_read_rgba(view, short.as_mut_ptr(), short.len(), &mut len) };
+    assert_eq!((status, len), (KerfStatus::TooLarge, 160 * 40 * 4));
+    let mut rgba = vec![0u8; len];
+    assert_eq!(
+        unsafe { kerf_view_read_rgba(view, rgba.as_mut_ptr(), rgba.len(), &mut len) },
+        KerfStatus::Ok
+    );
+    let at = |x: usize, y: usize| &rgba[(y * 160 + x) * 4..][..4];
+    assert_eq!(at(159, 39), [30, 30, 30, 255]);
+    let (cx, cy) = ((caret.x + 2.0) as usize, (caret.height / 2.0) as usize);
+    assert!(
+        at(cx, cy)[0] > 200 && at(cx, cy)[1] < 60,
+        "caret pixel {:?}",
+        at(cx, cy)
+    );
+
+    assert_eq!(
+        unsafe { kerf_view_resize(view, 80, 20, 1.0) },
+        KerfStatus::Ok
+    );
+    assert_eq!(unsafe { kerf_view_set_theme(view, null()) }, KerfStatus::Ok);
+    assert_eq!(unsafe { kerf_view_render(view, ed) }, KerfStatus::Ok);
+    assert_eq!(
+        unsafe { kerf_view_read_rgba(view, null_mut(), 0, &mut len) },
+        KerfStatus::TooLarge
+    );
+    assert_eq!(len, 80 * 20 * 4);
+
+    unsafe {
+        kerf_view_free(view);
+        kerf_editor_free(ed);
+    }
+}
+
+#[test]
+fn broken_host_input_gets_a_status_not_a_crash() {
+    let dir = tempfile::tempdir().unwrap();
+    assert_eq!(open(&dir.path().join("missing")).0, KerfStatus::Io);
+    let binary = dir.path().join("bin");
+    std::fs::write(&binary, [0xff, 0xfe]).unwrap();
+    assert_eq!(open(&binary).0, KerfStatus::InvalidUtf8);
+    let bad_path = [0xffu8];
+    let mut ed = null_mut();
+    assert_eq!(
+        unsafe { kerf_editor_open(bad_path.as_ptr(), 1, &mut ed) },
+        KerfStatus::InvalidUtf8
+    );
+    assert_eq!(
+        unsafe { kerf_editor_open(null(), 3, &mut ed) },
+        KerfStatus::NullPointer
+    );
+    assert_eq!(
+        unsafe { kerf_editor_new(null_mut()) },
+        KerfStatus::NullPointer
+    );
+
+    assert_eq!(unsafe { kerf_editor_new(&mut ed) }, KerfStatus::Ok);
+    assert_eq!(insert(null_mut(), "a"), KerfStatus::NullPointer);
+    assert_eq!(
+        unsafe { kerf_editor_insert(ed, bad_path.as_ptr(), 1) },
+        KerfStatus::InvalidUtf8
+    );
+    assert_eq!(
+        unsafe { kerf_editor_insert(ed, bad_path.as_ptr(), KERF_MAX_INSERT_BYTES + 1) },
+        KerfStatus::TooLarge
+    );
+    assert_eq!(command(ed, 99), KerfStatus::Unsupported);
+    assert_eq!(insert(ed, "abc"), KerfStatus::Ok);
+    let mut len = 0;
+    let mut two = [0u8; 2];
+    assert_eq!(
+        unsafe { kerf_editor_copy_text(ed, two.as_mut_ptr(), 2, &mut len) },
+        KerfStatus::TooLarge
+    );
+    assert_eq!((len, two), (3, [0, 0]));
+    assert_eq!(
+        unsafe { kerf_editor_copy_text(ed, null_mut(), 8, &mut len) },
+        KerfStatus::NullPointer
+    );
+
+    let theme = KerfTheme {
+        font_family: bad_path.as_ptr(),
+        font_family_len: 1,
+        font_size: 13.0,
+        line_height: 17.0,
+        background: [0; 4],
+        text: [0; 4],
+        caret: [0; 4],
+        caret_width: 1.0,
+        draw_caret: 7,
+    };
+    let mut view = null_mut();
+    assert_eq!(
+        unsafe { kerf_view_new_offscreen(10, 10, 1.0, &theme, &mut view) },
+        KerfStatus::InvalidUtf8
+    );
+    assert_eq!(
+        unsafe { kerf_view_render(null_mut(), ed) },
+        KerfStatus::NullPointer
+    );
+    assert_eq!(
+        unsafe { kerf_view_caret(null_mut(), null_mut()) },
+        KerfStatus::NullPointer
+    );
+    unsafe {
+        kerf_view_free(null_mut());
+        kerf_editor_free(null_mut());
+        kerf_editor_free(ed);
+    }
+}
