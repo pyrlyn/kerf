@@ -24,6 +24,10 @@ pub struct Frame<'a> {
 /// A surface that draws a [`Frame`]. The shell implements it for its toolkit;
 /// tests implement it to record what would have been drawn.
 pub trait Render {
+    /// Why a draw failed. A GPU renderer can run out of atlas space or lose
+    /// its device; a recorder never fails and uses `Infallible`.
+    type Error;
+
     /// Draw `frame`, replacing whatever was drawn before.
-    fn render(&mut self, frame: &Frame<'_>);
+    fn render(&mut self, frame: &Frame<'_>) -> Result<(), Self::Error>;
 }
