@@ -158,6 +158,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kerf-inspect"
+version = "0.0.0"
+dependencies = [
+ "kerf-core",
+ "kerf-semantic",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "kerf-semantic"
 version = "0.0.0"
 dependencies = [

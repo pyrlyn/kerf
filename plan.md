@@ -10,7 +10,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T6 | todo | P1 | 4 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
-| T9 | todo | P2 | 4 | 0% | |
 | T10 | todo | P2 | 2 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
 | T12 | todo | P2 | 5 | 0% | |
@@ -39,10 +38,6 @@ The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-
 ### T8. LSP results in the semantic layer
 
 Merge language-server answers into `kerf-semantic` where tree-sitter misses (macro bodies, type-resolved references), tagged by source so tree-sitter results stay the base. Add at least one more tree-sitter language. Done when the recall test on the labelled fixture improves with a scripted language server and a second language has its own fixture.
-
-### T9. Inspections with quick fixes
-
-A plugin export that runs over the core's index and returns diagnostics with edits, as in IntelliJ. The contract (JSON in and out, versioned), a core-side runner that validates and caps what a plugin returns, and applying a fix as one undoable edit. Done when a test inspection reports a problem on a fixture and its fix applies and undoes.
 
 ### T10. Plugin lockfile
 
