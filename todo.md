@@ -1,13 +1,9 @@
 # Todo
 
-- T4.1. IDE permission set
-- T4.2. LSP and DAP manifest tables
 - T6. Plugin host on `wasm-plugin-host`
 - T8. LSP results in the semantic layer
-- T11. Language-server and debug-adapter binaries through ketch
 - T12.2. GPU editor renderer
 - T12.3. C ABI for native hosts
 - T12.4. macOS host
-- T13. Remote development
 - T14. Local code completion
 - T15. Mobile plugin backend
