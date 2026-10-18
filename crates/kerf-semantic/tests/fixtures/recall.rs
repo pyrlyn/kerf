@@ -80,3 +80,20 @@ pub fn run() -> i32 {
     println!("{GREETING} {}", n.len());
     total + LIMIT as i32 + square(2.0) as i32
 }
+
+// What tree-sitter cannot see: an item a macro defines, and a function named
+// as a value. A language server resolves both.
+macro_rules! getter {
+    ($name:ident) => {
+        pub fn $name() -> usize {
+            LIMIT
+        }
+    };
+}
+
+getter!(limit);
+
+pub fn scaled() -> f64 {
+    let scale: fn(f64) -> f64 = square;
+    scale(limit() as f64)
+}

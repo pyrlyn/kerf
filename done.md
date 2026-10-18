@@ -75,6 +75,18 @@ Plan:
 1. Add the workflow (Linux x86_64, macOS arm64, Windows x86_64 — no Intel Mac).
 2. Add the crates to `toolchain.md`, and to `rust.md` if they are new.
 
+### T12.1. Rendering trait, editor and toolkit choice
+
+- `research.md` §7: the UI shell direction with primary sources — first Slint through slint-bindings against Flutter through slint_dart, then the creator's choice of native hosts over a C ABI with Kerf's own GPU editor renderer (`wgpu` + `cosmic-text` + `glyphon`).
+- `kerf-core`: the `Render` trait and the `Frame` the core hands it, and an `Editor` (buffer + cursor) that turns typing, backspace, cursor moves, undo and redo into `TextBuffer` edits.
+
+Plan:
+
+1. Compare the paths in `research.md` §7 (slint-bindings and slint_dart READMEs at `4d61045`, Slint, Flutter, wgpu and vello docs, crates.io metadata).
+2. `crates/kerf-core/src/render.rs`: `Render`, `Frame` (buffer, cursor byte, line, column).
+3. `crates/kerf-core/src/editor.rs`: `Editor`; `TextBuffer::line_col`, `prev_boundary`, `next_boundary` for whole-character steps.
+4. Verify: unit tests for each editor operation and a recording `Render`; `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
+
 ### T3. Semantic layer: incremental parse and symbol index
 
 `crates/kerf-semantic`. Done when an edit re-parses only the changed file incrementally, the index updates only that file's symbols, and a test measures definition and reference recall on a labelled Rust fixture.
@@ -100,6 +112,41 @@ Plan:
 7. Verify: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, then CI on the PR.
 
 Result: definition recall 1.000 and reference recall 1.000 on `tests/fixtures/recall.rs` (20 definitions, 27 references, no unlabelled hits). The upstream tags query alone reaches 0.750 and 0.519; the extra patterns cover path-qualified and turbofish calls, calls inside macro arguments, `impl Trait for Type`, trait method signatures, enum variants, `const` and `static`.
+
+### T6. Plugin host on `wasm-plugin-host`
+
+`crates/kerf-plugin`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on cox's ABI (`cox:host/v1`, extism), not a third copy of cox's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
+
+Plan:
+
+1. Depend on `wasm-plugin-host` and `cox-plugin-api` as git dependencies pinned by `rev` (`pyrlyn/crates`, `pyrlyn/cox`): neither is on crates.io, and the crates.io name `wasm_plugin_host` belongs to an unrelated crate, so the registry route in `rust.md` is closed.
+2. `crates/kerf-plugin`: `manifest` (the one module that reads `plugin.toml` into cox's `PluginManifest` with `toml`, then `validate`), `trigger` (activation triggers derived from `[[language_servers]]` and `[[debug_adapters]]`, read without running code), `host` (discover through `wasm-plugin-host`, a gate for siblings T7/T10, lazy load and `cox_init` on the first matching trigger, calls through the control or event lane, three consecutive failures or a failed `cox_init` disable the plugin).
+3. Tests with WAT fixtures: a manifest is read without loading wasm, a plugin activates only on its trigger, answers a call, a trapping plugin is disabled while another plugin keeps answering, project plugins are refused by the default gate, the notice list is capped.
+4. Verify: `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`. Rows in `toolchain.md`.
+
+Result: `crates/kerf-plugin` (`Plugins`, `Trigger`, `Gate`, `Manifest`). Tests: `crates/kerf-plugin/tests/plugins.rs` and unit tests in its modules.
+
+### T8. LSP results in the semantic layer
+
+Merge language-server answers into `kerf-semantic` where tree-sitter misses (macro bodies, type-resolved references), tagged by source so tree-sitter results stay the base. Add at least one more tree-sitter language. Done when the recall test on the labelled fixture improves with a scripted language server and a second language has its own fixture.
+
+Split when claimed (500-line task cap); both subtasks land in one PR, in order.
+
+#### T8.1. Merge API and a second grammar in `kerf-semantic`
+
+1. Tag every `Symbol` with its source (`TreeSitter` or `LanguageServer`). `Semantic::merge_lsp` takes `gen-lsp-types` document symbols and reference locations (`lsp-types` has had no release since 2024-06; `gen-lsp-types` is generated from the upstream schema and used by rust-analyzer and ruff), maps UTF-16 or UTF-8 positions to bytes, keeps only answers that land on an identifier with the claimed name, never replaces a tree-sitter symbol, caps answers per file, and drops a file's LSP symbols on its next edit (their positions are stale).
+2. Python grammar and tags query from `tree-sitter-python`, picked by file extension; `tests/fixtures/recall.py` with its own labels and recall test.
+3. The Rust fixture gains what tree-sitter cannot see (an item a macro defines, a function named as a value); the recall test reports tree-sitter alone and tree-sitter plus a scripted answer file `tests/fixtures/recall.lsp.json`.
+4. Unit tests for hostile answers: out of range, wrong name, split UTF-8, over the cap.
+
+#### T8.2. LSP client with a scripted server in `crates/kerf-lsp`
+
+1. JSON-RPC over stdio with `Content-Length` framing, as `docs/architecture.md` §5 says: 4 MiB message cap (kill the process on abuse), a bounded inbound queue that drops notifications with a counter, an 8 KiB stderr ring, a request timeout, and `shutdown`/`exit` with a 2 s budget before kill.
+2. The process starts through a small `Spawn` trait, so T7's trust check can wrap it later.
+3. A scripted fake server binary replays `recall.lsp.json`; an end-to-end test runs it through the client into `kerf-semantic` and checks the same recall gain.
+4. Verify: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`; numbers in the commits.
+
+Result: `Semantic::merge_lsp` and Python in `kerf-semantic`, the client in `crates/kerf-lsp` with the scripted server `kerf-fake-lsp`. Recall on `recall.rs` (23 definitions, 31 references): tree-sitter alone 0.957 and 0.968; with the scripted answers 1.000 and 1.000, both in-process and over the wire, two symbols added, no unlabelled hits. `recall.py` (11 definitions, 15 references): 1.000 and 1.000 with the upstream query. Not done here: process counts and the restart budget of `docs/architecture.md` §5.2 (they belong to `kerf-process`), and diagnostics.
 
 ### T11. Language-server and debug-adapter binaries through ketch
 
@@ -145,6 +192,21 @@ Plan:
 5. Crate map row in `docs/architecture.md`, `toolchain.md` rows for `ureq` and `httpmock`.
 
 Result: runa [pyrlyn/runa#101](https://github.com/pyrlyn/runa/pull/101) adds `POST /v1/infill` (runa P20.1). `crates/kerf-complete` has `Context::around` (prefix tail and suffix head from a `TextBuffer`, snapped to character boundaries), `Client` (timeout, reply byte limit, completion cap, `content` shape check, no redirects or env proxy, API key redacted in `Debug`) and `Completer` (one worker thread, generation counter, `on_edit` cancels, only the newest queued request is sent). 8 unit tests and 9 tests against `httpmock`.
+
+### T13. Remote development
+
+The plugin host and the language servers run next to the code; the UI stays local. First slice: a versioned UI ↔ host protocol and a headless host process that owns buffers and the semantic layer, over any byte stream (stdio, SSH). Every message and queue from the remote side is capped. Done when tests drive open, edit, undo and a symbol query through an in-memory transport and the protocol refuses an unknown major version.
+
+Execution plan:
+
+1. `research.md` §6: how Zed's remote server, VS Code Remote - SSH and `cox acp` split UI and host, with primary sources; pick the wire format and the framing crate.
+2. New crate `crates/kerf-remote` (crate map row in `docs/architecture.md`): JSON-RPC 2.0, one JSON object per line (ACP's stdio framing). Framing through `tokio-util`'s `LinesCodec` with a maximum line length, envelopes through `jsonrpsee-types`; no hand-written framing.
+3. `initialize` carries the protocol `{ major, minor }`; an unknown major is refused with a typed error and the connection ends. Methods: `buffer/open|read|edit|undo|redo|close`, `index/lookup`.
+4. Headless `Host` owns `kerf-core` buffers and `kerf-semantic` under a workspace root. Sans-IO `Connection` (bytes in, bytes out) with caps on message size (both directions), inbound queue depth, open buffers and buffer size; `serve(Read, Write)` drives it over any byte stream; `kerf-host` binary serves stdio, which SSH carries.
+5. Tests through an in-memory transport: open, edit, undo, symbol query, unknown major refused, oversized message refused, full queue answers busy.
+6. Verify: `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`.
+
+Result: `crates/kerf-remote` with protocol 1.0 (`initialize`, `buffer/open|read|edit|undo|redo|close`, `index/lookup`), a sans-IO `Connection`, the `Host`, and the `kerf-host` binary over stdio. Caps: 4 MiB per line in both directions (an over-cap answer becomes `REPLY_TOO_LARGE`), 64 queued requests (more answer `BUSY`), 256 buffers, 8 MiB per buffer, 10 000 symbols per lookup. 9 integration tests through an in-memory stream that hands out 7 bytes per read, plus one over the binary's stdio. About 565 lines of code without comments and blanks, over the 500-line cap: the caps and typed errors the card asks for are most of it, and the protocol cannot be tested apart from the host without a stub dispatcher that would add code.
 
 ### T7. Workspace Trust
 

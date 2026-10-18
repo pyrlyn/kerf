@@ -1,0 +1,29 @@
+[package]
+name = "kerf-lsp"
+description = "Kerf's language-server client: JSON-RPC over stdio with hard caps on everything the server sends"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace versions live in the root `[workspace.dependencies]`.
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+gen-lsp-types = { workspace = true }
+kerf-semantic = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

@@ -32,10 +32,11 @@ Already fixed by the creator ([AGENTS.md](../AGENTS.md),
 - Everything a plugin, a language server, a debug adapter or a repository
   writes is untrusted input. Every queue and buffer it can grow has a hard cap.
 
-Still open in [research.md §5](../research.md#5-open-questions): the UI shell
-(cox `Widget` tree or weft; Slint or Flutter) and the mobile interpreter
-backend. Neither is a contract T2–T4 need, so this document does not settle
-them.
+Still open in [research.md §5](../research.md#5-open-questions): plugin UI
+(cox `Widget` tree or weft) and the mobile interpreter backend. Neither is a
+contract T2–T4 need, so this document does not settle them. The window is
+settled in [research.md §7](../research.md#7-ui-shell-t12): native hosts over
+a C ABI, with Kerf's own GPU renderer for the editor surface.
 
 ## 2. Core boundary and crate map
 
@@ -68,13 +69,14 @@ from `[workspace.dependencies]` (AGENTS.md hard rules).
 | Crate | Status | Holds |
 | --- | --- | --- |
 | `crates/kerf-core` | named in [plan.md](../plan.md) T2 | Text buffer, edit events, undo/redo, event loop with bounded queues. No UI toolkit binding — rendering is a trait the shell implements. |
-| `crates/kerf-semantic` | named in [plan.md](../plan.md) T3 | tree-sitter incremental parse, symbol index. Depends on the edit-event type, not on buffer internals. |
+| `crates/kerf-semantic` | named in [plan.md](../plan.md) T3 | tree-sitter incremental parse, symbol index. Depends on the edit-event type, not on buffer internals. Language-server answers merge in through `merge_lsp` (T8), tagged by source. |
 | `crates/kerf-inspect` | named in [plan.md](../plan.md) T9 | Inspections: the versioned `kerf_inspect` JSON contract, a runner that caps and checks plugin replies, quick fixes as one undoable buffer edit. The plugin call is a trait the plugin host implements. |
 | `crates/kerf-complete` | named in [plan.md](../plan.md) T14 | Local inline completion: the text around the cursor to runa's fill-in-the-middle endpoint (`/v1/infill`), with a timeout, a reply size cap, a completion length cap and cancellation on the next edit. One worker thread; the event loop only polls. Chat and agents are not here: they go through `cox acp`. |
+| `crates/kerf-remote` | [done.md](../done.md) T13 | Remote development: the versioned UI ↔ host protocol (JSON-RPC 2.0, one object per line) and the headless host that owns buffers and the semantic layer next to the code; `kerf-host` serves it over stdio, which SSH carries. Every line, queue, buffer and answer is capped. |
 | `crates/kerf-process` | approved, created by its first task | Spawn, supervise, cap and stop LSP, DAP and task processes. The only crate that creates OS processes for those services. |
-| `crates/kerf-lsp` | approved, created by its first task | LSP client (JSON-RPC over stdio) on top of `kerf-process`. Not a plugin. |
+| `crates/kerf-lsp` | created in T8 | LSP client (JSON-RPC over stdio). Not a plugin. Until `kerf-process` exists it holds the per-server caps of §5.2 (message size, inbound queue, stderr ring, timeouts, shutdown budget) and starts processes only through its `Spawn` trait; process counts and the restart budget belong to `kerf-process`. |
 | `crates/kerf-dap` | approved, created by its first task | DAP client on top of `kerf-process`. Not a plugin. |
-| `crates/kerf-plugin` | approved, created by its first task | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
+| `crates/kerf-plugin` | created by T6 | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
 
 Shared engines Kerf depends on rather than copies:
 
@@ -481,4 +483,7 @@ new task, not by editing this list silently.
    (§4.1).
 10. **LSP merge points:** T8 defines the merge API in `kerf-semantic`, tagged
     by source, definitions and references first. Diagnostics are not index
-    data and stay a separate stream.
+    data and stay a separate stream. Done in T8:
+    `Semantic::merge_lsp` adds `documentSymbol` definitions and `references`
+    ranges tree-sitter missed, tagged `Source::LanguageServer`; an edit
+    drops them.

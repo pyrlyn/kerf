@@ -16,27 +16,27 @@
       }
     }
   },
-  "$comment": "Generated from crates/kerf-plugin-lock. Regenerate with KERF_BLESS_SCHEMA=1 cargo test -p kerf-plugin-lock.",
   "additionalProperties": false,
   "required": [
     "format"
   ],
+  "$comment": "Generated from crates/kerf-plugin-lock. Regenerate with KERF_BLESS_SCHEMA=1 cargo test -p kerf-plugin-lock.",
   "$defs": {
-    "Digest": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
+    "Format": {
+      "type": "integer",
+      "const": 1
     },
     "Entry": {
       "description": "One pinned plugin.",
       "type": "object",
       "properties": {
-        "digest": {
-          "description": "cox's package digest of the installed package.",
-          "$ref": "#/$defs/Digest"
-        },
         "version": {
           "description": "The version from the plugin's manifest.",
           "type": "string"
+        },
+        "digest": {
+          "description": "cox's package digest of the installed package.",
+          "$ref": "#/$defs/Digest"
         }
       },
       "additionalProperties": false,
@@ -45,9 +45,9 @@
         "digest"
       ]
     },
-    "Format": {
-      "type": "integer",
-      "const": 1
+    "Digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }
