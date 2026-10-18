@@ -39,7 +39,11 @@ schemars = "1.2.3"
 config-schema = "0.1.0"
 # JSON payloads of plugin exports in `kerf-inspect`, the same encoding cox's ABI
 # uses through extism (`docs/architecture.md` §3); also writes the trust schema.
-serde_json = "1.0.154"
+# `preserve_order` on for every crate: `cox-plugin-api` turns it on by feature
+# unification, and schemars' key order follows it, so without it here a
+# committed schema would read stale or current depending on which crates a
+# build selects.
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
 # Throwaway folder trees for the Workspace Trust and plugin lockfile tests (dev
 # only): removed on drop, so tests never touch a real home or each other's folders.
 tempfile = "3.27.0"
