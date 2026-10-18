@@ -96,7 +96,7 @@ impl TextBuffer {
         if line_idx >= self.text.len_lines() {
             return Err(Error::OutOfBounds {
                 start: line_idx,
-                end: line_idx + 1,
+                end: line_idx.saturating_add(1),
                 len: self.text.len_lines(),
             });
         }
@@ -423,6 +423,19 @@ mod tests {
     fn line_out_of_range_is_an_error() {
         let buf = TextBuffer::with_text("only");
         assert!(matches!(buf.line(1), Err(Error::OutOfBounds { .. })));
+    }
+
+    #[test]
+    fn largest_line_index_returns_an_error_without_overflow() {
+        let buf = TextBuffer::new();
+        assert!(matches!(
+            buf.line(usize::MAX),
+            Err(Error::OutOfBounds {
+                start: usize::MAX,
+                end: usize::MAX,
+                len: 1,
+            })
+        ));
     }
 
     #[test]
