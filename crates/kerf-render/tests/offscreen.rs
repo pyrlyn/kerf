@@ -100,6 +100,13 @@ fn frame_draws_background_text_and_the_caret_on_request() {
     let px = pixels(&view, 200);
     assert!(near(px[cy][cx], theme.background), "{:?}", px[cy][cx]);
 
+    // A frame a hidden window cannot take still moves the host's caret.
+    ed.insert("\n").unwrap();
+    let moved = view.renderer().lay_out(&ed.frame(), size).unwrap();
+    assert_eq!(moved.y, 48.0);
+    assert!(moved.x < caret.x);
+    assert_eq!(view.renderer().caret(), Some(moved));
+
     view.resize(Size {
         width: 100,
         height: 30,
