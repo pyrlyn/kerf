@@ -243,6 +243,19 @@ This replaces the first comparison in this section (Slint from Rust against Flut
 
 Open, checked when the renderer task runs (**unverified** here): which software adapter CI runners offer for an offscreen render test (WARP on Windows, lavapipe on Linux, Metal on the macOS arm64 runner), and how a WinUI `SwapChainPanel` hosts a wgpu surface.
 
+### Look: Xcode on macOS, Visual Studio on Windows
+
+The creator's rule (2026-10-19): the code editor looks native — on macOS like Xcode's editor, on Windows like Visual Studio's. The renderer therefore hard-codes no font, colour or caret; the native host hands it a theme taken from the platform, and draws the platform's own pieces where the platform offers them.
+
+| | macOS (Xcode) | Windows (Visual Studio) |
+| --- | --- | --- |
+| Font | SF Mono, which Apple ships for "coding environments like Xcode" ([Apple Fonts](https://developer.apple.com/fonts/)) | Cascadia Mono, the Visual Studio 2022 default ([Fonts and colors](https://learn.microsoft.com/en-us/visualstudio/ide/how-to-change-fonts-and-colors-in-visual-studio?view=vs-2022)) |
+| Syntax colours | The user's Xcode theme, read at run time: Xcode 27.1 bundles `Default (Light).xccolortheme`, `Default (Dark).xccolortheme` and others under `DVTUserInterfaceKit.framework/Versions/A/Resources/FontAndColorThemes/` (observed on this machine, Xcode 27.1 build 27A9275; the file format and the user theme folder `~/Library/Developer/Xcode/UserData/FontAndColorThemes` are **unverified** — Apple does not document them). Kerf never copies Apple's files; without Xcode it falls back to its own theme. | Visual Studio's Light and Dark themes; where they are read from is **unverified** and belongs to the Windows host task. |
+| Caret | The system's own `NSTextInsertionIndicator` view over the GPU surface ("a view that represents the insertion indicator in text", macOS 14.0+, [AppKit](https://developer.apple.com/documentation/appkit/nstextinsertionindicator)) | Drawn from the WinUI theme resources (Windows host task). |
+| Selection | `NSColor.selectedTextBackgroundColor` ("the color to use for the background of selected text", [AppKit](https://developer.apple.com/documentation/appkit/nscolor/selectedtextbackgroundcolor)) | WinUI theme resources (Windows host task). |
+| Light/Dark | Follows the system appearance and switches the Xcode Light/Dark theme with it. | Follows the Windows theme. |
+| Key behaviour | `NSTextInputClient` with `doCommandBySelector:`, so the Cocoa text bindings Xcode users know (Option-arrows, Emacs-style Control keys) and IME come from the system. | Visual Studio's shortcuts, mapped in the host. |
+
 ### Licence
 
 wgpu and cosmic-text are `MIT OR Apache-2.0`, glyphon `MIT OR Apache-2.0 OR Zlib` (crates.io metadata of the versions above), which fits all of Kerf's licences. With Slint gone, the Slint Royalty-free licence question is gone too.
