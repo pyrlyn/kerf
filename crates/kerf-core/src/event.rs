@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! The edit-event type the event loop (T2.2) and the semantic layer (T3)
-//! consume. It is deliberately self-contained: no rope type crosses this
-//! boundary, so a consumer never depends on buffer internals.
+//! The edit-event type the event loop and the semantic layer (T3) consume.
+//! It is deliberately self-contained: no rope type crosses this boundary, so
+//! a consumer never depends on buffer internals.
 
 use std::ops::Range;
 
@@ -16,7 +16,8 @@ use std::ops::Range;
 ///
 /// - [`deleted`](Self::deleted) is the byte range the edit removed, in the
 ///   buffer **before** the edit (pre-edit coordinates). `deleted.len()` is the
-///   number of bytes removed.
+///   number of bytes removed. A pure insert is an empty range; a pure delete
+///   has `inserted_len == 0`.
 /// - [`inserted_len`](Self::inserted_len) is the byte length of the text that
 ///   replaced it. After the edit that text occupies
 ///   `deleted.start .. deleted.start + inserted_len` (post-edit coordinates).
@@ -72,5 +73,17 @@ mod tests {
         };
         assert_eq!(event.deleted.len(), 0);
         assert_eq!(event.inserted(), 3..8);
+    }
+
+    #[test]
+    fn pure_delete_has_zero_inserted_len() {
+        let event = EditEvent {
+            deleted: 2..7,
+            inserted_len: 0,
+            start_line: 0,
+            start_col: 2,
+        };
+        assert_eq!(event.deleted.len(), 5);
+        assert_eq!(event.inserted_len, 0);
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "kerf-core"
-description = "Text buffer, replace-edits with undo/redo, and edit events for Kerf's core"
+description = "Kerf's core without UI: text buffer with undo/redo, edit events, bounded queues and a single-threaded event loop"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,8 +14,12 @@ thiserror = { workspace = true }
 
 [lints.rust]
 unsafe_code = "forbid"
+missing_docs = "warn"
 
 [lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
 unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
