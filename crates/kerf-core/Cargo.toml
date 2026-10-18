@@ -1,6 +1,6 @@
 [package]
 name = "kerf-core"
-description = "Kerf's core without UI: text buffer with undo/redo, edit events, bounded queues and a single-threaded event loop"
+description = "Kerf's core without UI: text buffer with undo/redo, edit events, bounded queues, a single-threaded event loop and Workspace Trust"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,9 @@ repository.workspace = true
 # Workspace versions live in the root `[workspace.dependencies]`.
 ropey = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [lints.rust]
 unsafe_code = "forbid"

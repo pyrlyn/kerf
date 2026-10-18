@@ -393,6 +393,15 @@ Rules:
 - Trust can be revoked; revoking stops LSP/DAP/tasks in that root (§5.3).
 - A trusted folder does not bypass grant checks: both conditions are required.
 
+Implementation (T7): `kerf_core::trust`. `TrustStore` holds canonical folder
+roots in memory; a trusted root covers its subfolders, as in VS Code and Zed
+([research.md §2](../research.md#2-survey)). Every LSP, DAP and task spawn
+calls `TrustStore::authorize(cwd, SpawnKind)` and gets a `SpawnPermit` or a
+typed `TrustError`. The permit has no public constructor, so `kerf-process`
+spawn functions take it by value and run the process in `permit.cwd()`.
+`revoke` answers the removed roots so the supervisor can stop their processes
+(§5.3). Persistence waits on open point 7.
+
 ## 7. Interface versioning
 
 Following cox's rules (cox §4, §15.7) and the borrowed shapes

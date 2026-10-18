@@ -21,5 +21,8 @@ thiserror = "2"
 tree-sitter = "0.27.1"
 # Rust grammar and its tags query for `kerf-semantic`.
 tree-sitter-rust = "0.24.2"
+# Throwaway folder trees for the Workspace Trust tests (dev only): removed on
+# drop, so tests never touch a real home or each other's folders.
+tempfile = "3.27.0"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
