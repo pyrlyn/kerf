@@ -69,10 +69,11 @@ from `[workspace.dependencies]` (AGENTS.md hard rules).
 | --- | --- | --- |
 | `crates/kerf-core` | named in [plan.md](../plan.md) T2 | Text buffer, edit events, undo/redo, event loop with bounded queues. No UI toolkit binding — rendering is a trait the shell implements. |
 | `crates/kerf-semantic` | named in [plan.md](../plan.md) T3 | tree-sitter incremental parse, symbol index. Depends on the edit-event type, not on buffer internals. |
-| `crates/kerf-process` | **proposed** | Spawn, supervise, cap and stop LSP, DAP and task processes. The only crate that creates OS processes for those services. |
-| `crates/kerf-lsp` | **proposed** | LSP client (JSON-RPC over stdio) on top of `kerf-process`. Not a plugin. |
-| `crates/kerf-dap` | **proposed** | DAP client on top of `kerf-process`. Not a plugin. |
-| `crates/kerf-plugin` | **proposed** | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
+| `crates/kerf-inspect` | named in [plan.md](../plan.md) T9 | Inspections: the versioned `kerf_inspect` JSON contract, a runner that caps and checks plugin replies, quick fixes as one undoable buffer edit. The plugin call is a trait the plugin host implements. |
+| `crates/kerf-process` | approved, created by its first task | Spawn, supervise, cap and stop LSP, DAP and task processes. The only crate that creates OS processes for those services. |
+| `crates/kerf-lsp` | approved, created by its first task | LSP client (JSON-RPC over stdio) on top of `kerf-process`. Not a plugin. |
+| `crates/kerf-dap` | approved, created by its first task | DAP client on top of `kerf-process`. Not a plugin. |
+| `crates/kerf-plugin` | approved, created by its first task | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
 
 Shared engines Kerf depends on rather than copies:
 
@@ -176,7 +177,7 @@ language plugin loads when its language appears:
 | `capabilities.tools` / `hooks` / `events` | First use of the tool, or the subscribed event fires — these have no static trigger of their own. |
 
 An explicit `activates = [...]` list (VS Code's `activationEvents`) is
-**new** and only needed for the last row; see open point 2.
+**new** and not in v1 (§8 decision 2).
 
 ### 3.5 No process spawning by plugins
 
@@ -290,7 +291,7 @@ again (cox §3, digest-bound grants).
 Runtime command resolution (Zed's `language-server-command` returns
 `{command, args, env}` at run time —
 [research.md §2 Zed](../research.md#2-survey)) is *not* in this contract.
-v1's manifest command is the only source; see open point 3.
+v1's manifest command is the only source (§8 decision 3).
 
 ### 4.4 Host functions for the new families
 
@@ -331,7 +332,7 @@ they can grow has a hard cap (AGENTS.md hard rule).
 5. One client instance per **(workspace root, server name)**. A second root
    gets its own instance; a second name is a second process.
 
-### 5.2 Caps (proposed defaults — open point 4)
+### 5.2 Caps
 
 | Queue / buffer | Cap | On overflow |
 | --- | --- | --- |
@@ -346,7 +347,7 @@ they can grow has a hard cap (AGENTS.md hard rule).
 
 Every cap is a typed error in `kerf-process` (like `wasm-plugin-host`'s
 `Busy` / `Deadline` / `MemoryCap`), not a silent grow. The numbers are
-proposed defaults for `kerf-process` (implementation); see open point 4.
+approved defaults for `kerf-process` (§8 decision 4).
 
 ### 5.3 Stop
 
@@ -367,7 +368,7 @@ queues (§2.3 item 2).
 Builds and tasks are also processes the core starts
 ([research.md §1](../research.md#1-conclusion)). They are user-initiated or
 debug-initiated in v1; a plugin-initiated build is not in the permission
-families (open point 5). Same sandbox wrap, same caps table (queue/buffer
+families (§8 decision 5). Same sandbox wrap, same caps table (queue/buffer
 caps at least).
 
 ## 6. Workspace Trust
@@ -392,6 +393,18 @@ Rules:
   cox grant dialogs (cox §2).
 - Trust can be revoked; revoking stops LSP/DAP/tasks in that root (§5.3).
 - A trusted folder does not bypass grant checks: both conditions are required.
+
+Implementation (T7): `kerf_core::trust`. `TrustStore` holds canonical folder
+roots in memory; a trusted root covers its subfolders, as in VS Code and Zed
+([research.md §2](../research.md#2-survey)). Every LSP, DAP and task spawn
+calls `TrustStore::authorize(cwd, SpawnKind)` and gets a `SpawnPermit` or a
+typed `TrustError`. The permit has no public constructor, so `kerf-process`
+spawn functions take it by value and run the process in `permit.cwd()`.
+`revoke` answers the removed roots so the supervisor can stop their processes
+(§5.3). `TrustStore::load` / `save` keep the roots in `kerf/trust.toml` under
+the OS config directory (`TrustStore::default_path`, decision 7), with a
+committed JSON Schema (`crates/kerf-core/schema/trust.schema.json`), a 4 MiB
+read cap, a 1024-root cap, absolute roots only and an atomic write.
 
 ## 7. Interface versioning
 
@@ -426,36 +439,38 @@ versioned WIT, which Kerf deliberately does *not* take):
    speaks DAP 1.x; exact negotiated versions are implementation facts and
    **unverified** in this document.
 
-## 8. Open points for the creator
+## 8. Decisions on the open points
 
-1. **Crate map.** Approve the proposed `kerf-process` / `kerf-lsp` /
-   `kerf-dap` / `kerf-plugin` split, or fold supervision into `kerf-core`
-   (smaller tree, fatter core)?
-2. **Activation triggers.** Derived only from declarative tables (§3.4), or
-   also an explicit `activates = [...]` manifest field (**new** to
-   `cox-plugin-api`) for tools/hooks/events with no static trigger?
-3. **Runtime command resolution.** Manifest command only (this document), or
-   also a Zed-style export that returns `{command, args, env}` at run time
-   ([research.md §2 Zed](../research.md#2-survey))? If yes, it must still
-   match the granted `lsp:`/`dap:` line and the core still spawns.
-4. **Supervision caps.** The numbers in §5.2 are proposed defaults (queue
-   depths, 4 MiB message cap, 8/4 process caps, 3 restarts/hour). Approve or
-   adjust.
-5. **Builds/tasks from plugins.** User- and debug-initiated only (this
-   document), or a seventh family (`tasks` / under `terminal`)? If plugins
-   may request builds, name the permission.
-6. **`git.write` scope.** Stage/commit only, or also checkout/branch? Is
-   `git.read` enough for v1 with `git.write` deferred?
-7. **Workspace Trust store.** Where trust is persisted (user-level store —
-   this document's "outside the repository"), and whether multi-root
-   workspaces trust per root or all-or-nothing.
-8. **`kerf:host/v1` vs `cox:host/v1`.** Confirm the new namespace for IDE
-   host functions (this document), rather than adding them to `cox:host/v1`
-   as minor additions.
-9. **Terminal family naming.** `terminal.io` on cox's `TerminalCaps` (this
-   document), or a separate `console` / `shell` capability to keep
-   `TerminalCaps` surface-only (cox §15.3)?
-10. **LSP merge points.** Where language-server answers enter `kerf-semantic`
-    (definitions, references, diagnostics) — the layer is core-owned
-    ([research.md §1](../research.md#1-conclusion)); the merge API is not
-    defined until T3 or a later task.
+The creator delegated these to the agent that closed T1; each answer picks the
+smaller option that keeps the settled direction (§1). Revisit any of them in a
+new task, not by editing this list silently.
+
+1. **Crate map: approved as split.** `kerf-process`, `kerf-lsp`, `kerf-dap`
+   and `kerf-plugin` stay out of `kerf-core`, so the core never creates OS
+   processes. A crate is created by the first task that needs it, never empty
+   in advance.
+2. **Activation triggers: declarative tables only.** No `activates = [...]`
+   field in v1. Tools, hooks and events with no static trigger activate on
+   first use (§3.4). Nothing new in `cox-plugin-api` for this.
+3. **Runtime command resolution: manifest only.** No Zed-style export in v1,
+   because "what a plugin can do is readable without running its code"
+   (AGENTS.md). A later export must still match the granted `lsp:`/`dap:`
+   line, and the core still spawns.
+4. **Supervision caps: approved** as the defaults in §5.2. They become
+   settings later; the hard upper bounds stay.
+5. **Builds and tasks: user- and debug-initiated only.** No seventh family in
+   v1.
+6. **`git.write`: stage and commit only.** Checkout, branch, reset and push
+   are not grantable to plugins in v1; they change the working tree or the
+   remote under the user. `git.read` covers `status`, `diff`, `log`.
+7. **Workspace Trust store:** a user-level file in the OS config directory,
+   never in the repository. Multi-root workspaces trust **per root**, as in
+   VS Code; trusting one root trusts nothing else.
+8. **`kerf:host/v1`: confirmed.** IDE host functions live there;
+   `cox:host/v1` stays unchanged (§7 point 1).
+9. **Terminal: `terminal.io` on cox's `TerminalCaps`, confirmed.** One table,
+   two flags with distinct meanings (§4.1); no second table with a clashing
+   Serde name.
+10. **LSP merge points:** T8 defines the merge API in `kerf-semantic`, tagged
+    by source, definitions and references first. Diagnostics are not index
+    data and stay a separate stream.

@@ -21,20 +21,29 @@ thiserror = "2"
 tree-sitter = "0.27.1"
 # Rust grammar and its tags query for `kerf-semantic`.
 tree-sitter-rust = "0.24.2"
-# Serde derives for the plugin lockfile's types in `kerf-plugin-lock`.
-serde = { version = "1.0.229", features = ["derive"] }
-# TOML for the plugin lockfile: the `toml` row in the monorepo's rust.md, with
-# serde (de)serialization; no comment-preserving edits are needed because
-# Kerf writes the whole file.
-toml = "1.1.8"
-# Atomic writes for the plugin lockfile: the shared crate in `packages/`
-# (pyrlyn/crates) that owns atomic file replacement, so no second copy here.
+# Workspace Trust file I/O in `kerf-core` and the plugin lockfile's atomic
+# writes in `kerf-plugin-lock`: the shared file entry point (canonical paths
+# without the Windows `\\?\` prefix, case-folded prefix checks, atomic writes)
+# instead of a fourth copy of those helpers.
 fs-kit = "0.1.0"
-# Test-only: the lockfile's JSON Schema from its types (rust.md, Config files).
+# The OS config directory for the trust file (architecture decision 7):
+# `app-home` resolves XDG paths on every OS, which suits CLIs, not an IDE.
+dirs = "7.0.0"
+# The trust file and the plugin lockfile are TOML read into typed structs
+# (rust.md: Config files); Kerf writes the whole lockfile, so no comment-preserving edits.
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.8"
+# JSON Schema of the trust file and the plugin lockfile, generated in tests only (dev).
 schemars = "1.2.3"
 # Test-only: the shared stale-schema check from `packages/` (pyrlyn/crates).
 config-schema = "0.1.0"
-# Test-only: per-test temporary directories.
+# JSON payloads of plugin exports in `kerf-inspect`, the same encoding cox's ABI
+# uses through extism (`docs/architecture.md` §3); also writes the trust schema.
+serde_json = "1.0.154"
+# Throwaway folder trees for the Workspace Trust and plugin lockfile tests (dev
+# only): removed on drop, so tests never touch a real home or each other's folders.
 tempfile = "3.27.0"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
+# Index the inspection runner (`kerf-inspect`) hands to plugins.
+kerf-semantic = { path = "crates/kerf-semantic" }
