@@ -32,10 +32,11 @@ Already fixed by the creator ([AGENTS.md](../AGENTS.md),
 - Everything a plugin, a language server, a debug adapter or a repository
   writes is untrusted input. Every queue and buffer it can grow has a hard cap.
 
-Still open in [research.md §5](../research.md#5-open-questions): the UI shell
-(cox `Widget` tree or weft; Slint or Flutter) and the mobile interpreter
-backend. Neither is a contract T2–T4 need, so this document does not settle
-them.
+Still open in [research.md §5](../research.md#5-open-questions): plugin UI
+(cox `Widget` tree or weft) and the mobile interpreter backend. Neither is a
+contract T2–T4 need, so this document does not settle them. The window is
+settled in [research.md §6](../research.md#6-ui-shell-t12): native hosts over
+a C ABI, with Kerf's own GPU renderer for the editor surface.
 
 ## 2. Core boundary and crate map
 
