@@ -205,7 +205,7 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 
 - **Plugin ABI.** Core modules with JSON over extism (cox, `wasm-plugin-host`) or WIT components (Zed, Lapce via WASI)? Taking cox "as is" means core modules; versioned WIT would be a new contract. Settled by the creator on 2026-10-09: cox's ABI as is.
 - **Licence.** Settled by the creator on 2026-10-09: the same terms as cox (GPL-3.0-or-later or royalty-free, plus commercial), so host code may be taken from cox.
-- **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window could be Slint through slint-bindings or Flutter through slint_dart.
+- **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window: settled in T12 — native hosts over a C ABI, with Kerf's own GPU editor renderer (§7).
 - **Mobile.** Wasmtime needs a JIT. iOS and Android need an interpreter backend behind the same host API.
 
 ## 6. Remote development (T13)
@@ -234,3 +234,55 @@ Crates for the wire (registry API, checked 2026-10-19):
 | [`lsp-server`](https://crates.io/crates/lsp-server) | 0.10.0 | Rejected: `read_msg_text` resizes its buffer to any `Content-Length` and reads header lines without a limit ([source](https://github.com/rust-lang/rust-analyzer/blob/master/lib/lsp-server/src/msg.rs)), so a hostile peer chooses the allocation. |
 | [`jsonrpsee`](https://crates.io/crates/jsonrpsee) | 0.26.1 | Rejected: an async client/server framework on tokio; the host needs only envelopes. |
 | [`jsonrpc-core`](https://crates.io/crates/jsonrpc-core) | 18.0.0 | Rejected: last release 2021-07-20. |
+
+## 7. UI shell (T12)
+
+Checked on 2026-10-19. Repository facts are at slint-bindings `4d61045` (which vendors slint_dart under `flutter/`); crate facts come from the crates.io API on that date.
+
+### Direction (the creator, 2026-10-19)
+
+Kerf uses **native controls** and **its own GPU renderer for the code editor**:
+
+- The window, menus, panels and dialogs are the platform's own: AppKit/SwiftUI on macOS, WinUI 3 (C#) on Windows, GTK 4 on Linux.
+- Each native host talks to the Rust core through a **C ABI**, the pattern slint-bindings uses (`sb_*`, `README.md`).
+- The editor surface is drawn by Kerf in Rust on the GPU, inside a native view, the way Zed draws its own editor.
+- **macOS first.** Windows and Linux hosts are separate tasks.
+
+This replaces the first comparison in this section (Slint from Rust against Flutter through slint_dart): both put a non-native toolkit around the whole window.
+
+### Why not the toolkit paths
+
+- **Slint from Rust** (winit backend): its own window with Slint widgets, not the platform's controls.
+- **Slint through slint-bindings**: native host, but the embedded surface is Slint, rendered on the CPU into a host-owned RGBA buffer (`README.md`, "How a frame happens"). The creator chose a Kerf renderer without Slint.
+- **Flutter through slint_dart**: Flutter owns the window and draws its own widgets; Dart and the Flutter SDK join the toolchain (slint_dart `README.md`; [Flutter Linux setup](https://docs.flutter.dev/platform-integration/linux/setup) adds GTK 3 and a C++ toolchain).
+
+### Editor renderer
+
+| Option | Version (crates.io) | Notes |
+| --- | --- | --- |
+| `wgpu` | 30.0.1, 2026-08-22 | Metal on macOS, D3D12 on Windows, Vulkan/GL on Linux; a surface is created from a raw window handle ([`SurfaceTargetUnsafe::RawHandle`](https://docs.rs/wgpu/30.0.1/wgpu/enum.SurfaceTargetUnsafe.html)), which on macOS is the host's `NSView`. |
+| `cosmic-text` | 0.19.0, 2026-04-22 | Shaping, line layout and font fallback, the same results on every OS. |
+| `glyphon` | 0.12.0, 2026-07-09 | Glyph atlas and text pipeline for wgpu on top of cosmic-text; depends on `wgpu ^30` and `cosmic-text ^0.19` (its 0.12.0 dependency list), so the three move together. |
+| `vello` | 0.11.0, 2026-10-02 | Linebender's 2D renderer. Its README calls the compute renderer "experimental" and the GPU sparse-strips renderer one that becomes primary "as it matures" ([vello README](https://github.com/linebender/vello)); not yet. |
+| `gpui` | 0.2.2, 2025-10-22 | Zed's framework owns its platform layer and window; it is not a surface to put inside another app's view. |
+
+**Choice:** `wgpu` + `cosmic-text` + `glyphon`, in a Rust crate that implements `kerf_core::Render` and draws into the surface of the native view. Text, cursor and edits stay in `kerf-core` (`Editor`, T12.1). The native host owns input and forwards it: on macOS an `NSView` that adopts `NSTextInputClient`, so IME and dead keys come from the system.
+
+Open, checked when the renderer task runs (**unverified** here): which software adapter CI runners offer for an offscreen render test (WARP on Windows, lavapipe on Linux, Metal on the macOS arm64 runner), and how a WinUI `SwapChainPanel` hosts a wgpu surface.
+
+### Look: Xcode on macOS, Visual Studio on Windows
+
+The creator's rule (2026-10-19): the code editor looks native — on macOS like Xcode's editor, on Windows like Visual Studio's. The renderer therefore hard-codes no font, colour or caret; the native host hands it a theme taken from the platform, and draws the platform's own pieces where the platform offers them.
+
+| | macOS (Xcode) | Windows (Visual Studio) |
+| --- | --- | --- |
+| Font | SF Mono, which Apple ships for "coding environments like Xcode" ([Apple Fonts](https://developer.apple.com/fonts/)) | Cascadia Mono, the Visual Studio 2022 default ([Fonts and colors](https://learn.microsoft.com/en-us/visualstudio/ide/how-to-change-fonts-and-colors-in-visual-studio?view=vs-2022)) |
+| Syntax colours | The user's Xcode theme, read at run time: Xcode 27.1 bundles `Default (Light).xccolortheme`, `Default (Dark).xccolortheme` and others under `DVTUserInterfaceKit.framework/Versions/A/Resources/FontAndColorThemes/` (observed on this machine, Xcode 27.1 build 27A9275; the file format and the user theme folder `~/Library/Developer/Xcode/UserData/FontAndColorThemes` are **unverified** — Apple does not document them). Kerf never copies Apple's files; without Xcode it falls back to its own theme. | Visual Studio's Light and Dark themes; where they are read from is **unverified** and belongs to the Windows host task. |
+| Caret | The system's own `NSTextInsertionIndicator` view over the GPU surface ("a view that represents the insertion indicator in text", macOS 14.0+, [AppKit](https://developer.apple.com/documentation/appkit/nstextinsertionindicator)) | Drawn from the WinUI theme resources (Windows host task). |
+| Selection | `NSColor.selectedTextBackgroundColor` ("the color to use for the background of selected text", [AppKit](https://developer.apple.com/documentation/appkit/nscolor/selectedtextbackgroundcolor)) | WinUI theme resources (Windows host task). |
+| Light/Dark | Follows the system appearance and switches the Xcode Light/Dark theme with it. | Follows the Windows theme. |
+| Key behaviour | `NSTextInputClient` with `doCommandBySelector:`, so the Cocoa text bindings Xcode users know (Option-arrows, Emacs-style Control keys) and IME come from the system. | Visual Studio's shortcuts, mapped in the host. |
+
+### Licence
+
+wgpu and cosmic-text are `MIT OR Apache-2.0`, glyphon `MIT OR Apache-2.0 OR Zlib` (crates.io metadata of the versions above), which fits all of Kerf's licences. With Slint gone, the Slint Royalty-free licence question is gone too.
