@@ -1,0 +1,52 @@
+# Hand labels for recall.rs: `def|ref <name> <1-based line>`.
+# Definitions: items (const, static, struct, enum, variant, type, trait,
+# method, fn, macro, mod). References: calls of every form, macro calls and
+# impl targets. Out of scope: fields, locals, types in signatures, `use`
+# paths and patterns.
+def LIMIT 7
+def GREETING 8
+def Point 10
+def Shape 15
+def Circle 16
+def Square 17
+def Grid 20
+def Area 22
+def area 23
+def describe 24
+def area 30
+def new 39
+def origin 43
+def manhattan 47
+def square 52
+def parse_all 56
+def twice 60
+def geometry 66
+def unit 67
+def run 72
+ref format 25
+ref area 25
+ref Area 29
+ref Shape 29
+ref square 32
+ref square 33
+ref Point 38
+ref new 44
+ref abs 48
+ref iter 57
+ref filter_map 57
+ref parse 57
+ref ok 57
+ref collect 57
+ref new 68
+ref new 73
+ref insert 74
+ref Circle 74
+ref origin 75
+ref unit 76
+ref parse_all 77
+ref take 78
+ref twice 79
+ref manhattan 79
+ref println 80
+ref len 80
+ref square 81
