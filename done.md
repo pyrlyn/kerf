@@ -103,6 +103,23 @@ Split when claimed (500-line task cap); both subtasks land in one PR, in order.
 
 Result: `Semantic::merge_lsp` and Python in `kerf-semantic`, the client in `crates/kerf-lsp` with the scripted server `kerf-fake-lsp`. Recall on `recall.rs` (23 definitions, 31 references): tree-sitter alone 0.957 and 0.968; with the scripted answers 1.000 and 1.000, both in-process and over the wire, two symbols added, no unlabelled hits. `recall.py` (11 definitions, 15 references): 1.000 and 1.000 with the upstream query. Not done here: process counts and the restart budget of `docs/architecture.md` §5.2 (they belong to `kerf-process`), and diagnostics.
 
+### T9. Inspections with quick fixes
+
+A plugin export that runs over the core's index and returns diagnostics with edits, as in IntelliJ. The contract (JSON in and out, versioned), a core-side runner that validates and caps what a plugin returns, and applying a fix as one undoable edit. Done when a test inspection reports a problem on a fixture and its fix applies and undoes.
+
+Plan:
+
+1. Reuse check: `kerf-core` already has the undoable replace (`TextBuffer::apply`) and `kerf-semantic` the per-file symbols (`FileSymbols`); cox's `cox-plugin-api` `abi.rs` sets the JSON style (`api` major in the input, no `deny_unknown_fields`, caps as consts). Nothing to extract.
+2. New crate `crates/kerf-inspect`:
+   - `contract.rs`: `InspectIn` (`api`, file path and text, the file's index slice) and `InspectOut` (diagnostics with severity, byte range, message and fixes made of edits), serde JSON in cox's ABI style; export name `kerf_inspect`.
+   - `runner.rs`: an `Inspection` trait (JSON bytes in, bytes out) so T6's plugin host plugs in later; the runner builds the input from `TextBuffer` and `Semantic`, caps the reply size before parsing, then validates and caps diagnostics, fixes, edits, text lengths, ranges (in bounds, on character boundaries, edits sorted and not overlapping). A bad reply is a typed error and no diagnostics.
+   - Applying a fix: its edits collapse into one replace over their span, so it is one `TextBuffer` undo step and one `EditEvent`; it refuses a buffer that changed under the span since the run.
+3. Tests with an in-process fake inspection: a problem reported on a fixture, the fix applies and undoes, the index re-reads the edit; oversized, malformed, out-of-range, overlapping and over-cap replies are rejected; a stale fix is refused.
+4. `serde` and `serde_json` rows in `toolchain.md`.
+5. Verify: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`.
+
+Result: `crates/kerf-inspect` with the `kerf_inspect` contract (`api = 1`), the runner behind the `Inspection` trait for T6 to implement, and `Report::apply_fix`. 14 integration tests on `tests/fixtures/deprecated.rs`.
+
 ### T7. Workspace Trust
 
 An untrusted folder starts no language servers, debuggers or tasks until the user trusts it. A trust store in the core, a check every process spawn goes through, and denial as a typed error. Done when tests show a spawn refused in an untrusted folder and allowed after trust is granted.

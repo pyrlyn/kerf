@@ -9,7 +9,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T4.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T6 | todo | P1 | 4 | 0% | |
-| T9 | todo | P2 | 4 | 0% | |
 | T10 | todo | P2 | 2 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
 | T12 | todo | P2 | 5 | 0% | |
@@ -35,10 +34,6 @@ The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-
 
 `crates/kerf-plugin-host`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on cox's ABI (`cox:host/v1`, extism), not a third copy of cox's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
 
-
-### T9. Inspections with quick fixes
-
-A plugin export that runs over the core's index and returns diagnostics with edits, as in IntelliJ. The contract (JSON in and out, versioned), a core-side runner that validates and caps what a plugin returns, and applying a fix as one undoable edit. Done when a test inspection reports a problem on a fixture and its fix applies and undoes.
 
 ### T10. Plugin lockfile
 

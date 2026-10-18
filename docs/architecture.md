@@ -69,6 +69,7 @@ from `[workspace.dependencies]` (AGENTS.md hard rules).
 | --- | --- | --- |
 | `crates/kerf-core` | named in [plan.md](../plan.md) T2 | Text buffer, edit events, undo/redo, event loop with bounded queues. No UI toolkit binding — rendering is a trait the shell implements. |
 | `crates/kerf-semantic` | named in [plan.md](../plan.md) T3 | tree-sitter incremental parse, symbol index. Depends on the edit-event type, not on buffer internals. Language-server answers merge in through `merge_lsp` (T8), tagged by source. |
+| `crates/kerf-inspect` | named in [plan.md](../plan.md) T9 | Inspections: the versioned `kerf_inspect` JSON contract, a runner that caps and checks plugin replies, quick fixes as one undoable buffer edit. The plugin call is a trait the plugin host implements. |
 | `crates/kerf-process` | approved, created by its first task | Spawn, supervise, cap and stop LSP, DAP and task processes. The only crate that creates OS processes for those services. |
 | `crates/kerf-lsp` | created in T8 | LSP client (JSON-RPC over stdio). Not a plugin. Until `kerf-process` exists it holds the per-server caps of §5.2 (message size, inbound queue, stderr ring, timeouts, shutdown budget) and starts processes only through its `Spawn` trait; process counts and the restart budget belong to `kerf-process`. |
 | `crates/kerf-dap` | approved, created by its first task | DAP client on top of `kerf-process`. Not a plugin. |
