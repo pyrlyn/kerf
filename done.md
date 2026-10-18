@@ -1,5 +1,60 @@
 # Done
 
+### T1. Architecture document
+
+The contracts every other task builds on, in `docs/architecture.md`. Done when the creator approves the document. The creator delegated the open points; the decisions are in §8 of the document.
+
+It covers:
+
+- the core boundary (rendering, buffer, event loop, semantic layer) and the crate map;
+- the plugin lifecycle on cox's ABI as is (`cox:host/v1`, extism, `wasm-plugin-host`): manifest read without running code, lazy activation, crash and disable;
+- the IDE permission set and the manifest tables for language servers and debug adapters, which are the input for T4.1 and T4.2;
+- how the core starts, supervises, caps and stops LSP and DAP processes;
+- Workspace Trust;
+- interface versioning.
+
+Plan:
+
+1. Read `research.md`, cox's `docs/design/plugins.md`, `crates/cox-plugin-api/src/manifest.rs` and `wasm-plugin-host` (with crates-packages#42).
+2. Write `docs/architecture.md`. Every borrowed idea links to its `research.md` section.
+3. List the open points for the creator at the end of the document.
+4. Verify: every permission and manifest table named in the document maps to a cox concept or is marked new.
+
+### T2. Core skeleton
+
+Split when claimed (500-line task cap). The first crate, `crates/kerf-core`, with no UI. The three subtasks together are done when `cargo test`, `cargo clippy -- -D warnings` and `cargo fmt --check` pass locally and in CI.
+
+### T2.1. Text buffer, edits, undo and redo
+
+- the text buffer, on a maintained rope crate chosen against the alternatives;
+- edits with undo and redo, emitting edit events (byte ranges and positions) that the semantic layer (T3) can consume.
+
+Plan:
+
+1. Pick the rope crate: compare maintained options on crates.io and in `rust.md`, and give the reason in the commit.
+2. Write the buffer, edits, undo and redo with tests.
+3. Define the edit-event type so T2.2 and T3 can consume it without depending on the buffer internals.
+
+### T2.2. Event loop with bounded queues
+
+- a single-threaded event loop with bounded queues;
+- back-pressure when a queue is full.
+
+Plan:
+
+1. Write the event loop and bounded queues against T2.1's edit events (or a stand-in type if T2.1 is not merged yet).
+2. Tests for back-pressure and for a full queue answering rather than growing.
+
+### T2.3. CI and toolchain bookkeeping
+
+- a GitHub Actions workflow for fmt, clippy and test on Linux x86_64, macOS arm64 and Windows x86_64;
+- `toolchain.md` and `rust.md` rows for every crate T2 introduces.
+
+Plan:
+
+1. Add the workflow (Linux x86_64, macOS arm64, Windows x86_64 — no Intel Mac).
+2. Add the crates to `toolchain.md`, and to `rust.md` if they are new.
+
 ### T3. Semantic layer: incremental parse and symbol index
 
 `crates/kerf-semantic`. Done when an edit re-parses only the changed file incrementally, the index updates only that file's symbols, and a test measures definition and reference recall on a labelled Rust fixture.
