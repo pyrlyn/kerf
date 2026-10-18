@@ -1,0 +1,5 @@
+// The C ABI exactly as cbindgen generates it; no copy to drift.
+module CKerf [system] {
+    header "../../../crates/kerf-ffi/include/kerf.h"
+    export *
+}

@@ -7,6 +7,7 @@
 | rustc, cargo, rustfmt, clippy | mise (`mise.toml`, 1.99.0) | Build, format, lint | https://github.com/rust-lang/rust |
 | mise | system | Pins the Rust toolchain | https://github.com/jdx/mise |
 | ketch | mise (`mise.toml`, `github:pyrlyn/ketch`) | `kerf-binaries` installs language servers and debug adapters through its CLI; the crate's tests run it | https://github.com/pyrlyn/ketch |
+| Xcode 27 (Swift 6.4, SwiftPM, `swift-format`) | system (Mac App Store); CI: the `xcode-27` image, selected by pyrlyn/ci `setup-xcode` | Builds, lints and tests the macOS host in `macos/` | https://developer.apple.com/xcode/ |
 | Mesa lavapipe (`mesa-vulkan-drivers`) | apt, CI Linux runners only | Software Vulkan adapter for the `kerf-render` offscreen test | https://gitlab.freedesktop.org/mesa/mesa |
 
 ## Crates
