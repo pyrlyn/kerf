@@ -12,7 +12,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T8 | todo | P2 | 5 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
 | T12 | todo | P2 | 5 | 0% | |
-| T13 | in progress | P3 | 5 | 5% | Claude Code / opus-5.5 |
 | T14 | todo | P3 | 4 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
 
@@ -45,19 +44,6 @@ Install and update language-server and debug-adapter binaries from GitHub releas
 ### T12. UI shell
 
 The first window. Pick Slint through slint-bindings or Flutter through slint_dart against each other, and record why in `research.md`. Rendering is a trait `kerf-core` defines (`docs/architecture.md` §2.1); the shell implements it in its own crate. Plugin UI and redraw-on-request come in later tasks. Done when a `kerf` binary opens a file, shows it, takes typing, undo and redo through `kerf-core`, and a headless UI test covers that path.
-
-### T13. Remote development
-
-The plugin host and the language servers run next to the code; the UI stays local. First slice: a versioned UI ↔ host protocol and a headless host process that owns buffers and the semantic layer, over any byte stream (stdio, SSH). Every message and queue from the remote side is capped. Done when tests drive open, edit, undo and a symbol query through an in-memory transport and the protocol refuses an unknown major version.
-
-Execution plan:
-
-1. `research.md` §6: how Zed's remote server, VS Code Remote - SSH and `cox acp` split UI and host, with primary sources; pick the wire format and the framing crate.
-2. New crate `crates/kerf-remote` (crate map row in `docs/architecture.md`): JSON-RPC 2.0, one JSON object per line (ACP's stdio framing). Framing through `tokio-util`'s `LinesCodec` with a maximum line length, envelopes through `jsonrpsee-types`; no hand-written framing.
-3. `initialize` carries the protocol `{ major, minor }`; an unknown major is refused with a typed error and the connection ends. Methods: `buffer/open|read|edit|undo|redo|close`, `index/lookup`.
-4. Headless `Host` owns `kerf-core` buffers and `kerf-semantic` under a workspace root. Sans-IO `Connection` (bytes in, bytes out) with caps on message size (both directions), inbound queue depth, open buffers and buffer size; `serve(Read, Write)` drives it over any byte stream; `kerf-host` binary serves stdio, which SSH carries.
-5. Tests through an in-memory transport: open, edit, undo, symbol query, unknown major refused, oversized message refused, full queue answers busy.
-6. Verify: `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`.
 
 ### T14. Local code completion
 
