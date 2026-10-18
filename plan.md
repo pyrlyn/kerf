@@ -7,7 +7,7 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
 | T1 | in progress | P0 | 3 | 100% | MiMo Desktop / mimo |
-| T2.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
+| T2.1 | done | P1 | 3 | 100% | MiMo Desktop / mimo |
 | T2.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T2.3 | in progress | P1 | 1 | 10% | MiMo Desktop / mimo |
 | T3 | in progress | P1 | 4 | 0% | Claude Code / claude-opus-5-5 |

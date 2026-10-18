@@ -7,6 +7,13 @@
 | rustc, cargo, rustfmt, clippy | mise (`mise.toml`, 1.99.0) | Build, format, lint | https://github.com/rust-lang/rust |
 | mise | system | Pins the Rust toolchain | https://github.com/jdx/mise |
 
+## Crates
+
+| Crate | How to install | Why here | Source |
+| --- | --- | --- | --- |
+| `ropey` | Cargo (workspace dep) | `kerf-core` text buffer: most used editor rope (Helix), stable, with char/line/UTF-16 metrics | https://crates.io/crates/ropey |
+| `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
+
 ## Linkers
 
 - **Windows (MSVC):** `rust-lld` through `.cargo/config.toml` (`[target.*-pc-windows-msvc] linker`). It ships with rustup, nothing to install.

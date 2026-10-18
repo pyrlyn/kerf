@@ -10,3 +10,9 @@ license = "GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free"
 repository = "https://github.com/pyrlyn/kerf"
 
 [workspace.dependencies]
+# Text rope for `kerf-core`: the most used editor rope (Helix), stable, with
+# the char/line/UTF-16 metrics the semantic layer and LSP need. `crop` is
+# newer with a smaller install base; `xi-rope` is unmaintained since 2019.
+ropey = "1.6.1"
+# Typed errors in library crates (shared rule in the monorepo's rust.md).
+thiserror = "2"
