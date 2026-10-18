@@ -205,5 +205,38 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 
 - **Plugin ABI.** Core modules with JSON over extism (cox, `wasm-plugin-host`) or WIT components (Zed, Lapce via WASI)? Taking cox "as is" means core modules; versioned WIT would be a new contract. Settled by the creator on 2026-10-09: cox's ABI as is.
 - **Licence.** Settled by the creator on 2026-10-09: the same terms as cox (GPL-3.0-or-later or royalty-free, plus commercial), so host code may be taken from cox.
-- **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window could be Slint through slint-bindings or Flutter through slint_dart.
+- **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window: settled in T12 — Slint, from Rust, on Slint's own winit backend (§6).
 - **Mobile.** Wasmtime needs a JIT. iOS and Android need an interpreter backend behind the same host API.
+
+## 6. UI shell (T12)
+
+The question from §5: the first window in Slint through slint-bindings, or in Flutter through slint_dart. Checked on 2026-10-19; repository facts at slint-bindings `4d61045` (which vendors slint_dart under `flutter/`).
+
+### What each path is
+
+- **Slint through slint-bindings.** slint-bindings embeds Slint in a native host view (SwiftUI/AppKit, WinUI 3) through a custom `slint::platform`, a CPU renderer into a host-owned RGBA buffer and an `sb_*` C ABI (slint-bindings `README.md`). It brings no window of its own: the window, run loop and frame presentation belong to the Swift or C# host. Status: M1 spike, the Windows host is code only (same file), and the crates are `publish = false` (slint-bindings `Cargo.toml`).
+- **Flutter through slint_dart.** slint_dart runs Slint inside a Flutter app: Slint renders into an RGBA buffer (software) or a Skia GPU texture, and a `SlintView` widget shows it; the app is Dart, with a melos/pub workspace, build and link hooks, ffigen bindings and an AOT path (slint_dart `README.md`, vendored at slint-bindings `flutter/README.md`).
+- **Slint on its own backend.** The `slint` crate opens its own window through winit (Windows, macOS, X11, Wayland) and renders with FemtoVG or its software renderer ([Slint cargo features](https://docs.slint.dev/latest/docs/rust/slint/docs/cargo_features/), slint 1.18.1). This is the path slint-bindings narrows for native hosts.
+
+### Comparison
+
+| | Slint (Rust) | Flutter through slint_dart |
+| --- | --- | --- |
+| Toolchains | Rust only; Kerf stays one Cargo workspace (AGENTS.md hard rules) | Rust + Dart + Flutter SDK; the core crosses an FFI boundary on every edit |
+| Who owns the window | Slint (winit) | Flutter's embedder |
+| Linux system packages | none at build time for winit/FemtoVG (checked by Kerf's CI) | `clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev` ([Flutter Linux setup](https://docs.flutter.dev/platform-integration/linux/setup)) |
+| Text drawing | Slint draws text in the window it owns | Slint draws into a buffer that Flutter shows as an image, or Skia (built only in slint_dart's `skia-*` CI jobs) |
+| Headless UI test | `i-slint-backend-testing`: no window, element queries, accessibility values (crate 1.18.1, `search_api.rs`) | the same backend through `slint_testing`, run from `dart test` |
+| Maturity in our repos | upstream crate, release 1.18.1 on crates.io (2026-09-21) | our own toolkit, several packages, Skia path partial ("callbacks not delivered yet", slint_dart `README.md`) |
+
+### Licence
+
+Slint is `GPL-3.0-only OR LicenseRef-Slint-Royalty-free-2.0 OR LicenseRef-Slint-Software-3.0` (i-slint-backend-testing 1.18.1 `lib.rs` header). Kerf's GPL build takes Slint under GPL-3.0; the royalty-free and commercial Kerf builds need the Slint Royalty-free 2.0 licence, which covers desktop, mobile and web applications, requires the `AboutSlint` widget on an About screen or the Slint badge on the download page, and forbids an application that exposes Slint's APIs ([LicenseRef-Slint-Royalty-free-2.0](https://github.com/slint-ui/slint/blob/master/LICENSES/LicenseRef-Slint-Royalty-free-2.0.md) §1–§3). Plugin UI as data the core draws (`docs/architecture.md` §2.1) never exposes Slint's API, so it fits. Both paths depend on Slint, so the licence does not separate them.
+
+### Choice
+
+**Slint, from Rust, on Slint's own winit backend**, in `crates/kerf-shell`:
+
+- Kerf is one Rust workspace; Slint keeps it one toolchain and keeps the core and the shell in one process with no FFI between them.
+- slint-bindings is the right tool only once Kerf wants a native SwiftUI or WinUI host around the editor. It has no window of its own and is not published, so a `kerf` binary cannot use it today; the shell pins the same Slint version, so the editor component can move into such a host later.
+- Flutter adds Dart, the Flutter SDK, GTK on Linux and an FFI boundary, and still renders through Slint; it buys nothing the first window needs.
