@@ -69,6 +69,7 @@ from `[workspace.dependencies]` (AGENTS.md hard rules).
 | --- | --- | --- |
 | `crates/kerf-core` | named in [plan.md](../plan.md) T2 | Text buffer, edit events, undo/redo, event loop with bounded queues. No UI toolkit binding — rendering is a trait the shell implements. |
 | `crates/kerf-semantic` | named in [plan.md](../plan.md) T3 | tree-sitter incremental parse, symbol index. Depends on the edit-event type, not on buffer internals. |
+| `crates/kerf-inspect` | named in [plan.md](../plan.md) T9 | Inspections: the versioned `kerf_inspect` JSON contract, a runner that caps and checks plugin replies, quick fixes as one undoable buffer edit. The plugin call is a trait the plugin host implements. |
 | `crates/kerf-process` | approved, created by its first task | Spawn, supervise, cap and stop LSP, DAP and task processes. The only crate that creates OS processes for those services. |
 | `crates/kerf-lsp` | approved, created by its first task | LSP client (JSON-RPC over stdio) on top of `kerf-process`. Not a plugin. |
 | `crates/kerf-dap` | approved, created by its first task | DAP client on top of `kerf-process`. Not a plugin. |
@@ -392,6 +393,18 @@ Rules:
   cox grant dialogs (cox §2).
 - Trust can be revoked; revoking stops LSP/DAP/tasks in that root (§5.3).
 - A trusted folder does not bypass grant checks: both conditions are required.
+
+Implementation (T7): `kerf_core::trust`. `TrustStore` holds canonical folder
+roots in memory; a trusted root covers its subfolders, as in VS Code and Zed
+([research.md §2](../research.md#2-survey)). Every LSP, DAP and task spawn
+calls `TrustStore::authorize(cwd, SpawnKind)` and gets a `SpawnPermit` or a
+typed `TrustError`. The permit has no public constructor, so `kerf-process`
+spawn functions take it by value and run the process in `permit.cwd()`.
+`revoke` answers the removed roots so the supervisor can stop their processes
+(§5.3). `TrustStore::load` / `save` keep the roots in `kerf/trust.toml` under
+the OS config directory (`TrustStore::default_path`, decision 7), with a
+committed JSON Schema (`crates/kerf-core/schema/trust.schema.json`), a 4 MiB
+read cap, a 1024-root cap, absolute roots only and an atomic write.
 
 ## 7. Interface versioning
 

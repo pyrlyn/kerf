@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TrustFile",
+  "description": "Kerf's Workspace Trust file (`trust.toml` in the user's config directory).\nWritten by Kerf when the user trusts or revokes a folder.",
+  "type": "object",
+  "properties": {
+    "roots": {
+      "description": "Absolute folders the user trusts; each covers its subfolders.",
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}
