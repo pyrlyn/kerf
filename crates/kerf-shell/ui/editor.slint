@@ -1,0 +1,73 @@
+// Copyright (c) 2026 Ivan Tugay
+// SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
+// Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
+
+// The editor window. It only draws what Rust sets and forwards keys: the text,
+// the cursor and every edit live in kerf-core, never in a Slint TextInput.
+
+import { ScrollView } from "std-widgets.slint";
+
+export component EditorWindow inherits Window {
+    in property <string> file-name;
+    in property <string> content;
+    in property <int> cursor-line;
+    // The cursor's line up to the cursor: its drawn width is the caret's x,
+    // so proportional fonts and wide characters need no metrics in Rust.
+    in property <string> before-cursor;
+    in property <string> status;
+    // Answers whether the key was used, so unhandled keys reach the window.
+    callback key(text: string, control: bool, shift: bool) -> bool;
+
+    title: root.file-name == "" ? "Kerf" : root.file-name + " — Kerf";
+    preferred-width: 800px;
+    preferred-height: 600px;
+    forward-focus: scope;
+
+    scope := FocusScope {
+        key-pressed(event) => {
+            root.key(event.text, event.modifiers.control, event.modifiers.shift) ? EventResult.accept : EventResult.reject
+        }
+
+        VerticalLayout {
+            ScrollView {
+                content-width: max(self.visible-width, body.preferred-width + 16px);
+                content-height: max(self.visible-height, body.preferred-height + 16px);
+
+                body := Text {
+                    x: 8px;
+                    y: 8px;
+                    text: root.content;
+                    font-family: "monospace";
+                    wrap: no-wrap;
+                    accessible-id: "content";
+                }
+
+                measure := Text {
+                    visible: false;
+                    text: root.before-cursor;
+                    font-family: body.font-family;
+                }
+
+                one-line := Text {
+                    visible: false;
+                    text: "X";
+                    font-family: body.font-family;
+                }
+
+                Rectangle {
+                    x: body.x + measure.preferred-width;
+                    y: body.y + root.cursor-line * one-line.preferred-height;
+                    width: 2px;
+                    height: one-line.preferred-height;
+                    background: body.color;
+                }
+            }
+
+            Text {
+                text: root.status;
+                horizontal-alignment: right;
+                accessible-id: "status";
+            }
+        }
+    }
+}

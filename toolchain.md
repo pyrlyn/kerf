@@ -12,7 +12,7 @@
 | Crate | How to install | Why here | Source |
 | --- | --- | --- | --- |
 | `ropey` | Cargo (workspace dep) | `kerf-core` text buffer: most used editor rope (Helix), stable, with char/line/UTF-16 metrics | https://crates.io/crates/ropey |
-| `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
+| `thiserror` | Cargo (workspace dep) | Typed errors in library crates and `kerf-shell` | https://crates.io/crates/thiserror |
 | `tree-sitter` | Cargo (workspace dep) | `kerf-semantic`: incremental re-parse from the old tree, and the query engine for tags | https://crates.io/crates/tree-sitter |
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
 | `fs-kit` | Cargo (workspace dep) | `kerf-core` trust file: canonical paths without the Windows `\\?\` prefix, case-folded prefix checks, atomic writes; `kerf-plugin-lock`: atomic lockfile writes | https://crates.io/crates/fs-kit |
@@ -22,7 +22,10 @@
 | `schemars` | Cargo (workspace dev dep) | `kerf-core`: JSON Schema of the trust file, checked by a test; `kerf-plugin-lock` tests: the lockfile's JSON Schema from its types | https://crates.io/crates/schemars |
 | `config-schema` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: fails when the committed schema is stale; shared crate from pyrlyn/crates | https://crates.io/crates/config-schema |
 | `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of the inspection payloads, as cox's ABI uses through extism; `kerf-core` (dev): writes the generated schema | https://crates.io/crates/serde_json |
-| `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` tests: per-test temporary directories | https://crates.io/crates/tempfile |
+| `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` tests: per-test temporary directories; `kerf-shell` tests: the files the window opens | https://crates.io/crates/tempfile |
+| `slint` | Cargo (workspace dep) | `kerf-shell`: the editor window (winit backend, FemtoVG and software renderers); chosen over Flutter through slint_dart in `research.md` §6 | https://crates.io/crates/slint |
+| `slint-build` | Cargo (workspace build dep) | `kerf-shell`: compiles `ui/editor.slint` into Rust at build time | https://crates.io/crates/slint-build |
+| `i-slint-backend-testing` | Cargo (workspace dev dep, exact pin) | `kerf-shell` tests: Slint's headless backend that drives the window path without a display | https://crates.io/crates/i-slint-backend-testing |
 
 ## Linkers
 

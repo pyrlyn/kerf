@@ -47,3 +47,11 @@ tempfile = "3.27.0"
 kerf-core = { path = "crates/kerf-core" }
 # Index the inspection runner (`kerf-inspect`) hands to plugins.
 kerf-semantic = { path = "crates/kerf-semantic" }
+# The UI toolkit of `kerf-shell` (T12, research.md §6): Slint's own winit backend
+# with the default renderers. No Qt backend (it needs Qt on the machine) and no
+# system tray. Same version as slint-bindings, so its host embedding can follow.
+slint = { version = "1.18.1", default-features = false, features = ["std", "compat-1-18", "accessibility", "backend-winit", "renderer-femtovg", "renderer-software"] }
+slint-build = "1.18.1"
+# Test-only: Slint's headless testing backend. An internal crate that moves in
+# lockstep with `slint`, hence the exact pin.
+i-slint-backend-testing = "=1.18.1"

@@ -1,0 +1,39 @@
+[package]
+name = "kerf-shell"
+description = "Kerf's window: a Slint shell that draws kerf-core's frames and forwards keys to its editor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "kerf"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace versions live in the root `[workspace.dependencies]`.
+kerf-core = { workspace = true }
+slint = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+i-slint-backend-testing = { workspace = true }
+tempfile = { workspace = true }
+
+[build-dependencies]
+slint-build = { workspace = true }
+
+[lints.rust]
+# `deny`, not `forbid`: the code slint-build generates allows `unsafe_code` for
+# its vtables, and `forbid` cannot be overruled. Our own code still may not use it.
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
