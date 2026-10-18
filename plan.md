@@ -14,7 +14,7 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T6 | todo | P1 | 4 | 0% | |
 | T7 | todo | P1 | 3 | 0% | |
-| T8 | todo | P2 | 5 | 0% | |
+| T8 | in progress | P2 | 5 | 5% | Claude Code / opus-5.5 |
 | T9 | todo | P2 | 4 | 0% | |
 | T10 | todo | P2 | 2 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
@@ -99,6 +99,22 @@ An untrusted folder starts no language servers, debuggers or tasks until the use
 ### T8. LSP results in the semantic layer
 
 Merge language-server answers into `kerf-semantic` where tree-sitter misses (macro bodies, type-resolved references), tagged by source so tree-sitter results stay the base. Add at least one more tree-sitter language. Done when the recall test on the labelled fixture improves with a scripted language server and a second language has its own fixture.
+
+Split when claimed (500-line task cap); both subtasks land in one PR, in order.
+
+#### T8.1. Merge API and a second grammar in `kerf-semantic`
+
+1. Tag every `Symbol` with its source (`TreeSitter` or `LanguageServer`). `Semantic::merge_lsp` takes `gen-lsp-types` document symbols and reference locations (`lsp-types` has had no release since 2024-06; `gen-lsp-types` is generated from the upstream schema and used by rust-analyzer and ruff), maps UTF-16 or UTF-8 positions to bytes, keeps only answers that land on an identifier with the claimed name, never replaces a tree-sitter symbol, caps answers per file, and drops a file's LSP symbols on its next edit (their positions are stale).
+2. Python grammar and tags query from `tree-sitter-python`, picked by file extension; `tests/fixtures/recall.py` with its own labels and recall test.
+3. The Rust fixture gains what tree-sitter cannot see (an item a macro defines, a function named as a value); the recall test reports tree-sitter alone and tree-sitter plus a scripted answer file `tests/fixtures/recall.lsp.json`.
+4. Unit tests for hostile answers: out of range, wrong name, split UTF-8, over the cap.
+
+#### T8.2. LSP client with a scripted server in `crates/kerf-lsp`
+
+1. JSON-RPC over stdio with `Content-Length` framing, as `docs/architecture.md` §5 says: 4 MiB message cap (kill the process on abuse), a bounded inbound queue that drops notifications with a counter, an 8 KiB stderr ring, a request timeout, and `shutdown`/`exit` with a 2 s budget before kill.
+2. The process starts through a small `Spawn` trait, so T7's trust check can wrap it later.
+3. A scripted fake server binary replays `recall.lsp.json`; an end-to-end test runs it through the client into `kerf-semantic` and checks the same recall gain.
+4. Verify: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`; numbers in the commits.
 
 ### T9. Inspections with quick fixes
 
