@@ -1,0 +1,43 @@
+# Rust CI through pyrlyn/ci's ci-rust.yml (fmt once, then clippy --all-targets
+# with -D warnings, check and cargo test per target). Targets: Linux x86_64,
+# macOS arm64 (aarch64-apple-darwin on the xcode-27 image) and Windows x86_64.
+# Intel macOS (x86_64-apple-darwin) is not supported. When the repository
+# variable MACOS_CI_DISABLED is set the macOS entry drops out of the matrix
+# (the same pattern as scull's ci.yml).
+# Shared workflows: https://github.com/pyrlyn/ci/blob/main/docs/reusable-workflows.md
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Rust comes from mise.toml (1.99.0), the single source of the pin; ci-rust
+  # fails the job when `rustc --version` is anything else. `crates/kerf-core` is
+  # the only member today (a stub until T2.1/T2.2 fill it in). The `matrix`
+  # input lists the three supported targets explicitly — not the shared
+  # pyrlyn matrix, which also has Linux aarch64.
+  rust:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    uses: pyrlyn/ci/.github/workflows/ci-rust.yml@main
+    # ci-rust cancels the whole run when a job fails (cancel-run-on-failure),
+    # which needs `actions: write` on the calling job.
+    permissions:
+      contents: read
+      actions: write
+    with:
+      matrix: ${{ vars.MACOS_CI_DISABLED == 'true' && '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}]' || '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"xcode-27","target":"aarch64-apple-darwin"},{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}]' }}

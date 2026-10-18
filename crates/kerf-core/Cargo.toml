@@ -1,0 +1,11 @@
+[package]
+name = "kerf-core"
+description = "Kerf editor core: text buffer, event loop, semantic layer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
