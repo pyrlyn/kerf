@@ -21,8 +21,14 @@ thiserror = "2"
 tree-sitter = "0.27.1"
 # Rust grammar and its tags query for `kerf-semantic`.
 tree-sitter-rust = "0.24.2"
+# Python grammar and its tags query: the second language of `kerf-semantic`.
+tree-sitter-python = "0.25.0"
+# LSP types for answers merged into `kerf-semantic`, generated from the
+# upstream metamodel. `lsp-types` has had no release since 2024-06; rust-analyzer
+# and ruff moved to this crate. No `url` feature: `Uri` stays a plain string.
+gen-lsp-types = "0.11.0"
 # Workspace Trust file I/O in `kerf-core` and the plugin lockfile's atomic
-# writes in `kerf-plugin-lock`: the shared file entry point (canonical paths
+# writes in `kerf-plugin-lock` and `kerf-binaries`: the shared file entry point (canonical paths
 # without the Windows `\\?\` prefix, case-folded prefix checks, atomic writes)
 # instead of a fourth copy of those helpers.
 fs-kit = "0.1.0"
@@ -31,14 +37,16 @@ fs-kit = "0.1.0"
 dirs = "7.0.0"
 # The trust file and the plugin lockfile are TOML read into typed structs
 # (rust.md: Config files); Kerf writes the whole lockfile, so no comment-preserving edits.
+# `kerf-binaries` also renders the ketch lockfile it hands to `ketch sync`.
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.8"
 # JSON Schema of the trust file and the plugin lockfile, generated in tests only (dev).
 schemars = "1.2.3"
 # Test-only: the shared stale-schema check from `packages/` (pyrlyn/crates).
 config-schema = "0.1.0"
-# JSON payloads of plugin exports in `kerf-inspect`, the same encoding cox's ABI
-# uses through extism (`docs/architecture.md` §3); also writes the trust schema.
+# JSON: plugin export payloads in `kerf-inspect` (the encoding cox's ABI uses
+# through extism, `docs/architecture.md` §3), LSP messages in `kerf-lsp` and
+# the scripted server's answer files; also writes the trust schema.
 # `preserve_order` on for every crate: `cox-plugin-api` turns it on by feature
 # unification, and schemars' key order follows it, so without it here a
 # committed schema would read stale or current depending on which crates a
@@ -47,6 +55,17 @@ serde_json = { version = "1.0.154", features = ["preserve_order"] }
 # Throwaway folder trees for the Workspace Trust and plugin lockfile tests (dev
 # only): removed on drop, so tests never touch a real home or each other's folders.
 tempfile = "3.27.0"
+# Line framing for `kerf-remote`'s UI <-> host wire: a maximum line length checked
+# before a line is buffered, on a `BytesMut` without a runtime (research.md §6).
+tokio-util = { version = "0.7.20", features = ["codec"] }
+# JSON-RPC 2.0 envelopes for `kerf-remote` (research.md §6). `lsp-server` was
+# rejected: it allocates whatever `Content-Length` the peer sends.
+jsonrpsee-types = "0.26.1"
+# Installed-size audit in `kerf-binaries`; does not follow symlinks by default.
+walkdir = "2.5.0"
+# Fixture digests in `kerf-binaries` tests.
+sha2 = "0.11.1"
+hex = "0.4.3"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
 # The extism plugin engine shared with cox and scull (worker thread, lanes,
@@ -57,5 +76,6 @@ wasm-plugin-host = { git = "https://github.com/pyrlyn/crates", rev = "ca1be0671d
 # cox's plugin contract: `PluginManifest` and the ABI payloads (`InitIn`,
 # `InitOut`). Kerf takes the contract as is; not on crates.io, so a git pin.
 cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac85bf24ce1114d5082e59d172e" }
-# Index the inspection runner (`kerf-inspect`) hands to plugins.
+# The index the inspection runner (`kerf-inspect`) hands to plugins, and the
+# index the LSP end-to-end test merges into.
 kerf-semantic = { path = "crates/kerf-semantic" }

@@ -103,6 +103,36 @@ impl TextBuffer {
         Ok(self.text.line(line_idx).to_string())
     }
 
+    /// 0-based line and byte column of `byte_idx`, clamped to the end of the
+    /// buffer so a caller's stale offset never panics in the rope.
+    #[must_use]
+    pub fn line_col(&self, byte_idx: usize) -> (usize, usize) {
+        let byte_idx = byte_idx.min(self.text.len_bytes());
+        let line = self.text.byte_to_line(byte_idx);
+        (line, byte_idx - self.text.line_to_byte(line))
+    }
+
+    /// Start of the character before `byte_idx`; `None` at the start of the
+    /// buffer or past its end.
+    #[must_use]
+    pub fn prev_boundary(&self, byte_idx: usize) -> Option<usize> {
+        if byte_idx > self.text.len_bytes() {
+            return None;
+        }
+        let char_idx = self.text.byte_to_char(byte_idx).checked_sub(1)?;
+        Some(self.text.char_to_byte(char_idx))
+    }
+
+    /// Start of the character after the one at `byte_idx`; `None` at or past
+    /// the end of the buffer.
+    #[must_use]
+    pub fn next_boundary(&self, byte_idx: usize) -> Option<usize> {
+        if byte_idx >= self.text.len_bytes() {
+            return None;
+        }
+        Some(self.text.char_to_byte(self.text.byte_to_char(byte_idx) + 1))
+    }
+
     /// Replace the bytes in `deleted` with `inserted`, record the inverse on
     /// the undo stack, clear the redo stack, and return the event describing
     /// the edit in pre-edit coordinates.
@@ -455,6 +485,28 @@ mod tests {
             buf.apply(0..0, "x").expect("insert");
         }
         assert_eq!(buf.undo_depth(), MAX_UNDO);
+    }
+
+    #[test]
+    fn line_col_counts_bytes_from_the_line_start_and_clamps() {
+        let buf = TextBuffer::with_text("ab\ncé\n");
+        assert_eq!(buf.line_col(0), (0, 0));
+        assert_eq!(buf.line_col(6), (1, 3));
+        assert_eq!(buf.line_col(7), (2, 0));
+        assert_eq!(buf.line_col(usize::MAX), (2, 0));
+    }
+
+    #[test]
+    fn boundaries_step_over_whole_characters() {
+        // "é" is 2 bytes, "日" is 3.
+        let buf = TextBuffer::with_text("é日");
+        assert_eq!(buf.next_boundary(0), Some(2));
+        assert_eq!(buf.next_boundary(2), Some(5));
+        assert_eq!(buf.next_boundary(5), None);
+        assert_eq!(buf.prev_boundary(5), Some(2));
+        assert_eq!(buf.prev_boundary(2), Some(0));
+        assert_eq!(buf.prev_boundary(0), None);
+        assert_eq!(buf.prev_boundary(usize::MAX), None);
     }
 
     #[test]
