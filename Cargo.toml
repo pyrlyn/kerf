@@ -66,6 +66,13 @@ walkdir = "2.5.0"
 # Fixture digests in `kerf-binaries` tests.
 sha2 = "0.11.1"
 hex = "0.4.3"
+# Blocking HTTP client for `kerf-complete`'s fill-in-the-middle requests on a
+# worker thread: no async runtime in the core, a whole-call timeout and a body
+# limit built in. No gzip, so the body limit caps what is actually decoded.
+ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
+# Fake HTTP endpoint for `kerf-complete`'s tests (dev only): per-mock delays,
+# bodies and hit counts for the timeout, size-cap and cancellation cases.
+httpmock = "0.8.3"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
 # The extism plugin engine shared with cox and scull (worker thread, lanes,

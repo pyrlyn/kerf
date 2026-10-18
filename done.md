@@ -179,6 +179,20 @@ Plan:
 
 Result: `crates/kerf-inspect` with the `kerf_inspect` contract (`api = 1`), the runner behind the `Inspection` trait for T6 to implement, and `Report::apply_fix`. 14 integration tests on `tests/fixtures/deprecated.rs`.
 
+### T14. Local code completion
+
+A fill-in-the-middle endpoint in runa, used by the editor. Chat and agents go through `cox acp`, not here. The runa side is a matching task in runa's `plan.md`; the Kerf side is a completion client with a timeout, a size cap and cancellation on the next edit. Done when Kerf's client passes tests against a fake endpoint and runa's endpoint has its own tests.
+
+Plan:
+
+1. runa (own repo, own worktree and PR): task P20.1 in runa's `plan.md`, a `POST /v1/infill` with llama-server's `/infill` fields (`input_prefix`, `input_suffix`, `n_predict`; reply `content`) built on the model's own FIM tokens. A model without FIM tokens gets a 400, never a chat-template imitation.
+2. `crates/kerf-complete`: blocking `ureq` client (no async runtime in Kerf), run on a worker thread so the event loop only polls. Context is the prefix and suffix around the cursor read from `kerf-core`'s `TextBuffer`, each capped in bytes and snapped to char boundaries.
+3. Hard caps on everything runa returns: a request timeout, a response body cap, a completion length cap, JSON shape checked. A `Completer` holds at most one request and cancels it on the next `EditEvent`; a cancelled or stale result is never delivered.
+4. Tests against a fake endpoint (`httpmock`): happy path, timeout, size cap, cancel on edit, malformed reply. fmt, clippy `-D warnings`, test.
+5. Crate map row in `docs/architecture.md`, `toolchain.md` rows for `ureq` and `httpmock`.
+
+Result: runa [pyrlyn/runa#101](https://github.com/pyrlyn/runa/pull/101) adds `POST /v1/infill` (runa P20.1). `crates/kerf-complete` has `Context::around` (prefix tail and suffix head from a `TextBuffer`, snapped to character boundaries), `Client` (timeout, reply byte limit, completion cap, `content` shape check, no redirects or env proxy, API key redacted in `Debug`) and `Completer` (one worker thread, generation counter, `on_edit` cancels, only the newest queued request is sent). 8 unit tests and 9 tests against `httpmock`.
+
 ### T13. Remote development
 
 The plugin host and the language servers run next to the code; the UI stays local. First slice: a versioned UI ↔ host protocol and a headless host process that owns buffers and the semantic layer, over any byte stream (stdio, SSH). Every message and queue from the remote side is capped. Done when tests drive open, edit, undo and a symbol query through an in-memory transport and the protocol refuses an unknown major version.

@@ -33,6 +33,8 @@
 | `hex` | Cargo (workspace dev dep) | `kerf-binaries` tests: hex form of fixture digests | https://crates.io/crates/hex |
 | `tokio-util` | Cargo (workspace dep, `codec`) | `kerf-remote`: `LinesCodec` frames the UI <-> host wire with a maximum line length, synchronously on a `BytesMut` | https://crates.io/crates/tokio-util |
 | `jsonrpsee-types` | Cargo (workspace dep) | `kerf-remote`: JSON-RPC 2.0 request, response and error envelopes | https://crates.io/crates/jsonrpsee-types |
+| `ureq` | Cargo (workspace dep) | `kerf-complete`: blocking HTTP for fill-in-the-middle requests on a worker thread; whole-call timeout and body limit built in, no async runtime; gzip off so the limit caps decoded bytes | https://crates.io/crates/ureq |
+| `httpmock` | Cargo (workspace dev dep) | `kerf-complete` tests: a fake `/v1/infill` with per-mock delays, bodies and call counts (timeout, size cap, cancellation) | https://crates.io/crates/httpmock |
 
 ## Linkers
 

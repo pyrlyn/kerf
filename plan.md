@@ -9,7 +9,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T12.2 | todo | P2 | 4 | 0% | |
 | T12.3 | todo | P2 | 3 | 0% | |
 | T12.4 | todo | P2 | 4 | 0% | |
-| T14 | todo | P3 | 4 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
 
 
@@ -28,10 +27,6 @@ A `cdylib`/`staticlib` crate with a generated C header: open a file into an `Edi
 #### T12.4. macOS host
 
 A SwiftPM app in the repository: an AppKit window, the Edit menu (Undo, Redo) and an `NSView` that adopts `NSTextInputClient` and hosts the renderer through the C ABI. It looks like Xcode's editor: SF Mono, the user's Xcode theme when Xcode is installed (Kerf's own otherwise), system selection colour, `NSTextInsertionIndicator` as the caret, Light/Dark with the system. Done when `swift build` and `swift test` pass in CI on macOS arm64 and a test drives open, type, undo and redo through the view.
-
-### T14. Local code completion
-
-A fill-in-the-middle endpoint in runa, used by the editor. Chat and agents go through `cox acp`, not here. The runa side is a matching task in runa's `plan.md`; the Kerf side is a completion client with a timeout, a size cap and cancellation on the next edit. Done when Kerf's client passes tests against a fake endpoint and runa's endpoint has its own tests.
 
 ### T15. Mobile plugin backend
 
