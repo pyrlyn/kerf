@@ -6,10 +6,13 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
-| T1 | in progress | P0 | 3 | 0% | Claude Code / claude-opus-5-5 |
-| T2 | in progress | P1 | 3 | 0% | Claude Code / claude-sonnet-5-5 |
+| T1 | in progress | P0 | 3 | 10% | MiMo Desktop / mimo |
+| T2.1 | done | P1 | 3 | 100% | MiMo Desktop / mimo |
+| T2.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
+| T2.3 | in progress | P1 | 1 | 10% | MiMo Desktop / mimo |
 | T3 | in progress | P1 | 4 | 0% | Claude Code / claude-opus-5-5 |
-| T4 | todo | P1 | 3 | 0% | |
+| T4.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
+| T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 
 ### T1. Architecture document
 
@@ -19,7 +22,7 @@ It covers:
 
 - the core boundary (rendering, buffer, event loop, semantic layer) and the crate map;
 - the plugin lifecycle on cox's ABI as is (`cox:host/v1`, extism, `wasm-plugin-host`): manifest read without running code, lazy activation, crash and disable;
-- the IDE permission set and the manifest tables for language servers and debug adapters, which are the input for T4;
+- the IDE permission set and the manifest tables for language servers and debug adapters, which are the input for T4.1 and T4.2;
 - how the core starts, supervises, caps and stops LSP and DAP processes;
 - Workspace Trust;
 - interface versioning.
@@ -33,21 +36,38 @@ Plan:
 
 ### T2. Core skeleton
 
-The first crate, `crates/kerf-core`, with no UI. Done when `cargo test`, `cargo clippy -- -D warnings` and `cargo fmt --check` pass locally and in CI.
+Split when claimed (500-line task cap). The first crate, `crates/kerf-core`, with no UI. The three subtasks together are done when `cargo test`, `cargo clippy -- -D warnings` and `cargo fmt --check` pass locally and in CI.
 
-It holds:
+#### T2.1. Text buffer, edits, undo and redo
 
 - the text buffer, on a maintained rope crate chosen against the alternatives;
-- edits with undo and redo, emitting edit events (byte ranges and positions) that the semantic layer (T3) can consume;
-- a single-threaded event loop with bounded queues.
+- edits with undo and redo, emitting edit events (byte ranges and positions) that the semantic layer (T3) can consume.
 
 Plan:
 
 1. Pick the rope crate: compare maintained options on crates.io and in `rust.md`, and give the reason in the commit.
 2. Write the buffer, edits, undo and redo with tests.
-3. Write the event loop with bounded queues and tests for back-pressure.
-4. Add a GitHub Actions workflow for fmt, clippy and test on Linux x86_64, macOS arm64 and Windows x86_64.
-5. Add the crates to `toolchain.md`, and to `rust.md` if they are new.
+3. Define the edit-event type so T2.2 and T3 can consume it without depending on the buffer internals.
+
+#### T2.2. Event loop with bounded queues
+
+- a single-threaded event loop with bounded queues;
+- back-pressure when a queue is full.
+
+Plan:
+
+1. Write the event loop and bounded queues against T2.1's edit events (or a stand-in type if T2.1 is not merged yet).
+2. Tests for back-pressure and for a full queue answering rather than growing.
+
+#### T2.3. CI and toolchain bookkeeping
+
+- a GitHub Actions workflow for fmt, clippy and test on Linux x86_64, macOS arm64 and Windows x86_64;
+- `toolchain.md` and `rust.md` rows for every crate T2 introduces.
+
+Plan:
+
+1. Add the workflow (Linux x86_64, macOS arm64, Windows x86_64 — no Intel Mac).
+2. Add the crates to `toolchain.md`, and to `rust.md` if they are new.
 
 ### T3. Semantic layer: incremental parse and symbol index
 
@@ -55,7 +75,7 @@ Plan:
 
 It holds:
 
-- tree-sitter parsing per file, with incremental re-parse from edit events (the same shape as T2's);
+- tree-sitter parsing per file, with incremental re-parse from edit events (the same shape as T2.1's);
 - a symbol index (definitions and references) from tree-sitter tags queries, updated per file.
 
 Rust is the first language. Scope stays within the 500-line task cap; more languages and LSP merging are later tasks.
@@ -72,6 +92,14 @@ Plan:
 
 ### T4. IDE permissions in `cox-plugin-api`
 
-Add the IDE permission set and the manifest tables for language servers and debug adapters, as T1 defines them, to cox's `cox-plugin-api`, its JSON Schemas and its docs. The plugin declares a process; the host spawns it, as with `[[mcp]]` today.
+Split when claimed (500-line task cap). Add the IDE permission set and the manifest tables for language servers and debug adapters, as T1 defines them, to cox's `cox-plugin-api`, its JSON Schemas and its docs. The plugin declares a process; the host spawns it, as with `[[mcp]]` today.
 
-Blocked by T1. The work happens in the cox repository and gets a matching task in cox's `plan.md` when it starts.
+The work happens in the cox repository and gets a matching task in cox's `plan.md` when it starts. Blocked on T1 only for the final names; the permission families are already in `research.md` (buffer, LSP, DAP, index, terminal, git) and can be implemented against that list.
+
+#### T4.1. IDE permission set
+
+The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-api`, with validation and schema.
+
+#### T4.2. LSP and DAP manifest tables
+
+`[[language_servers]]` and `[[debug_adapters]]` (names as T1 settles them) in `PluginManifest`, JSON Schema, and the docs. The plugin declares the command; the host spawns it.
