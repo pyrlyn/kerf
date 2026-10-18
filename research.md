@@ -39,6 +39,7 @@ No surveyed product has all three. Zed comes closest (WASM sandbox, capabilities
   - Unlike cox, these grants are a user setting, not permissions declared in each extension's manifest.
 - "Extensions cannot draw custom UI": **unverified** as a statement. The docs list only languages, debuggers, themes, icon themes, snippets, MCP servers and slash commands, and the WIT has no UI interface.
 - Zed implements the DAP client: https://zed.dev/docs/debugger
+- Worktree trust (Restricted Mode): every worktree starts restricted, and project settings, language-server and MCP-server installs and spawns wait for trust. Trusting a directory covers all its subdirectories; manual grants persist across restarts per host (checked 2026-10-19): https://zed.dev/docs/worktree-trust
 - Sizes are release assets, compressed: `Zed-aarch64.dmg` 118,562,674 B and `zed-linux-x86_64.tar.gz` 125,626,819 B (https://github.com/zed-industries/zed/releases/tag/v1.23.2). The installed size is **unverified**.
 
 **VS Code**
@@ -46,6 +47,7 @@ No surveyed product has all three. Zed comes closest (WASM sandbox, capabilities
   - Since 1.74, contributed commands, languages and views activate the extension without an explicit event.
   - That the manifest is read without running extension code follows from the format being static JSON; the docs do not say it outright (inference).
 - Workspace Trust: Restricted Mode disables debugging and the extensions that did not opt in: https://code.visualstudio.com/docs/editing/workspaces/workspace-trust
+  - Trusting a parent folder trusts all its subfolders; trust is revoked from the Workspace Trust editor; in a multi-root workspace an untrusted added folder puts the whole workspace in Restricted Mode (checked 2026-10-19).
 
 **IntelliJ Platform**
 - PSI is the platform's syntactic and semantic code model: https://plugins.jetbrains.com/docs/intellij/psi.html

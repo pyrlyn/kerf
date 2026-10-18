@@ -17,7 +17,13 @@
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
 | `tree-sitter-python` | Cargo (workspace dep) | `kerf-semantic`: Python grammar and its tags query, the second language | https://crates.io/crates/tree-sitter-python |
 | `gen-lsp-types` | Cargo (workspace dep) | LSP types for answers merged into `kerf-semantic`, generated from the upstream metamodel; `lsp-types` has had no release since 2024-06 | https://crates.io/crates/gen-lsp-types |
-| `serde_json` | Cargo (workspace dep) | JSON for LSP messages and the scripted server's answer files | https://crates.io/crates/serde_json |
+| `fs-kit` | Cargo (workspace dep) | `kerf-core` trust file: canonical paths without the Windows `\\?\` prefix, case-folded prefix checks, atomic writes | https://crates.io/crates/fs-kit |
+| `dirs` | Cargo (workspace dep) | `kerf-core`: the OS config directory for the trust file | https://crates.io/crates/dirs |
+| `serde` | Cargo (workspace dep) | `kerf-core`: typed trust file | https://crates.io/crates/serde |
+| `toml` | Cargo (workspace dep) | `kerf-core`: trust file format | https://crates.io/crates/toml |
+| `schemars` | Cargo (workspace dev dep) | `kerf-core`: JSON Schema of the trust file, checked by a test | https://crates.io/crates/schemars |
+| `serde_json` | Cargo (workspace dep) | `kerf-lsp`: LSP messages and the scripted server's answer files; `kerf-core` (dev): writes the generated schema | https://crates.io/crates/serde_json |
+| `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop | https://crates.io/crates/tempfile |
 
 ## Linkers
 
