@@ -37,6 +37,8 @@ pub struct Theme {
     pub background: Rgba,
     /// Default text colour.
     pub text: Rgba,
+    /// Fill behind selected text.
+    pub selection: Rgba,
     /// Caret colour, used only when [`Theme::draw_caret`] is set.
     pub caret: Rgba,
     /// Caret width.
@@ -56,6 +58,8 @@ impl Default for Theme {
             line_height: 17.0,
             background: [255, 255, 255, 255],
             text: [29, 29, 31, 255],
+            // macOS's light selected-text background.
+            selection: [179, 215, 255, 255],
             caret: [0, 0, 0, 255],
             caret_width: 1.0,
             draw_caret: false,

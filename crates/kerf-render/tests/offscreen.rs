@@ -115,3 +115,49 @@ fn frame_draws_background_text_and_the_caret_on_request() {
     view.render(&ed.frame()).unwrap();
     assert_eq!(view.read_rgba().unwrap().len(), 100 * 30 * 4);
 }
+
+#[test]
+fn selection_fills_behind_the_selected_text_only() {
+    let Some((device, queue)) = device() else {
+        return;
+    };
+    let theme = Theme {
+        font_size: 20.0,
+        line_height: 24.0,
+        background: [30, 30, 30, 255],
+        text: [250, 250, 250, 255],
+        selection: [40, 80, 200, 255],
+        ..Theme::default()
+    };
+    let size = Size {
+        width: 200,
+        height: 30,
+        scale: 1.0,
+    };
+    let mut ed = Editor::new(TextBuffer::with_text("Wide kerf"));
+    ed.select(0, 4).unwrap();
+    let mut layout = Layout::new();
+    layout.update(&ed.frame(), &theme, size);
+    let &[sel] = layout.selection() else {
+        panic!("{:?}", layout.selection())
+    };
+    let mut view = Offscreen::new(&device, &queue, layout, theme.clone(), size);
+    view.render(&ed.frame()).unwrap();
+    let px = pixels(&view, 200);
+
+    let inside: Vec<[u8; 4]> = px[1..23]
+        .iter()
+        .flat_map(|r| &r[sel.x as usize + 1..(sel.x + sel.width) as usize - 1])
+        .copied()
+        .collect();
+    let filled = inside.iter().filter(|&&p| near(p, theme.selection)).count();
+    assert!(filled * 2 > inside.len(), "{filled} of {}", inside.len());
+    // The letters are drawn over the fill, not hidden by it.
+    assert!(
+        inside.iter().any(|p| p[0] > 150),
+        "no text over the selection"
+    );
+    let after = (sel.x + sel.width) as usize + 2;
+    assert!(px[1..23].iter().all(|r| !near(r[after], theme.selection)));
+    assert!(near(px[2][199], theme.background), "{:?}", px[2][199]);
+}

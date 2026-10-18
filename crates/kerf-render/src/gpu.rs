@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! Drawing on the GPU: clear to the theme background, draw the shaped text
-//! through `glyphon`'s atlas, and the caret only when the host asks.
+//! Drawing on the GPU: clear to the theme background, fill the selection,
+//! draw the shaped text through `glyphon`'s atlas, and the caret only when
+//! the host asks.
 
 use glyphon::{
     Cache, Color, ContentType, CustomGlyph, RasterizeCustomGlyphRequest, RasterizedCustomGlyph,
@@ -103,22 +104,24 @@ impl GpuRenderer {
                 height: size.height,
             },
         );
-        // The caret is a solid glyph, so it goes through the same pipeline
-        // as the text instead of a second one of our own.
-        let caret: Vec<CustomGlyph> = self
-            .caret
-            .filter(|_| self.theme.draw_caret)
-            .map(|r| CustomGlyph {
-                id: 0,
-                left: r.x,
-                top: r.y,
-                width: r.width,
-                height: r.height,
-                color: Some(color(self.theme.caret)),
-                snap_to_physical_pixel: true,
-                metadata: 0,
-            })
-            .into_iter()
+        // The selection and the caret are solid glyphs, so they go through
+        // the same pipeline as the text instead of a second one of our own.
+        // glyphon draws an area's custom glyphs before its text, which puts
+        // the selection behind the letters.
+        let solid_rect = |r: &Rect, fill| CustomGlyph {
+            id: 0,
+            left: r.x,
+            top: r.y,
+            width: r.width,
+            height: r.height,
+            color: Some(color(fill)),
+            snap_to_physical_pixel: true,
+            metadata: 0,
+        };
+        let caret = self.caret.filter(|_| self.theme.draw_caret);
+        let solids: Vec<CustomGlyph> = (self.layout.selection().iter())
+            .map(|r| solid_rect(r, self.theme.selection))
+            .chain(caret.iter().map(|r| solid_rect(r, self.theme.caret)))
             .collect();
         let area = TextArea {
             buffer: &self.layout.text,
@@ -132,7 +135,7 @@ impl GpuRenderer {
                 bottom: i32::try_from(size.height).unwrap_or(i32::MAX),
             },
             default_color: color(self.theme.text),
-            custom_glyphs: &caret,
+            custom_glyphs: &solids,
         };
         self.text.prepare_with_custom(
             &self.device,
@@ -322,7 +325,8 @@ fn clear([r, g, b, a]: Rgba, srgb: bool) -> wgpu::Color {
     }
 }
 
-/// Every custom glyph is the caret: a fully covered mask the atlas tints.
+/// Every custom glyph is a solid rectangle: a fully covered mask the atlas
+/// tints with the glyph's colour.
 fn solid(req: RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph> {
     Some(RasterizedCustomGlyph {
         data: vec![u8::MAX; usize::from(req.width) * usize::from(req.height)],

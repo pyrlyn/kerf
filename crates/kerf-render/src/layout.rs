@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! Text layout without a GPU: shapes a frame and finds the caret, so hosts
-//! and tests can place the caret before anything is drawn.
+//! Text layout without a GPU: shapes a frame and finds the caret and the
+//! selection, so hosts and tests can place them before anything is drawn.
 
 use glyphon::cosmic_text::{BufferLine, LineEnding};
 use glyphon::{Attrs, AttrsList, Buffer, Cursor, Family, FontSystem, Metrics, Shaping, Wrap};
@@ -28,6 +28,7 @@ const BREAKS: [char; 7] = [
 pub struct Layout {
     pub(crate) fonts: FontSystem,
     pub(crate) text: Buffer,
+    selection: Vec<Rect>,
 }
 
 impl Layout {
@@ -44,7 +45,11 @@ impl Layout {
         let mut text = Buffer::new(&mut fonts, Metrics::new(13.0, 17.0));
         // Code is not reflowed; long lines scroll sideways, as in Xcode and VS.
         text.set_wrap(Wrap::None);
-        Self { fonts, text }
+        Self {
+            fonts,
+            text,
+            selection: Vec::new(),
+        }
     }
 
     /// Shape `frame` for a view of `size` and return the caret rectangle,
@@ -83,6 +88,7 @@ impl Layout {
             })
             .collect();
         self.text.shape_until_scroll(&mut self.fonts, false);
+        self.select(frame, size);
 
         let (x, y) = self
             .text
@@ -93,6 +99,50 @@ impl Layout {
             width: sane(theme.caret_width * scale, 1.0, MAX_FONT_PX, 1.0),
             height: line_px,
         })
+    }
+}
+
+impl Layout {
+    /// Rectangles behind the selected text of the last frame, one per line
+    /// span, in physical pixels; empty when nothing is selected.
+    #[must_use]
+    pub fn selection(&self) -> &[Rect] {
+        &self.selection
+    }
+
+    fn select(&mut self, frame: &Frame<'_>, size: Size) {
+        self.selection.clear();
+        let Some(range) = frame.selection() else {
+            return;
+        };
+        let at = |byte| {
+            let (line, col) = frame.buffer.line_col(byte);
+            Cursor::new(line, col)
+        };
+        let (start, end) = (at(range.start), at(range.end));
+        let lines = start.line..=end.line;
+        // `highlight` treats every run outside the two cursors' lines as
+        // selected, so runs are filtered to the selected lines first.
+        for run in self
+            .text
+            .layout_runs()
+            .filter(|r| lines.contains(&r.line_i))
+        {
+            let rect = |x, width| Rect {
+                x,
+                y: run.line_top,
+                width,
+                height: run.line_height,
+            };
+            self.selection
+                .extend(run.highlight(start, end).map(|(x, w)| rect(x, w)));
+            // A selected line break fills the rest of the row, as in Xcode
+            // and Visual Studio, so an empty selected line still shows.
+            let rest = size.width as f32 - run.line_w;
+            if run.line_i < end.line && rest > 0.0 {
+                self.selection.push(rect(run.line_w, rest));
+            }
+        }
     }
 }
 
@@ -190,6 +240,30 @@ mod tests {
                 .update(&ed.frame(), &Theme::default(), short)
                 .is_none()
         );
+    }
+
+    #[test]
+    fn selection_covers_the_selected_text_and_line_breaks() {
+        let mut layout = Layout::new();
+        let mut ed = Editor::new(TextBuffer::with_text("abc\n\nxy"));
+        layout.update(&ed.frame(), &Theme::default(), VIEW);
+        assert!(layout.selection().is_empty());
+
+        // "bc", the break, the empty line and its break, then "x".
+        ed.select(1, 6).unwrap();
+        layout.update(&ed.frame(), &Theme::default(), VIEW);
+        let line = Theme::default().line_height;
+        let rows: Vec<f32> = layout.selection().iter().map(|r| r.y).collect();
+        assert_eq!(rows, [0.0, 0.0, line, 2.0 * line]);
+        let [bc, rest, empty, x] = layout.selection() else {
+            unreachable!()
+        };
+        assert!(bc.x > 0.0 && bc.width > 0.0);
+        assert!((rest.x - (bc.x + bc.width)).abs() < 0.5);
+        assert_eq!(rest.x + rest.width, VIEW.width as f32);
+        assert_eq!((empty.x, empty.width), (0.0, VIEW.width as f32));
+        assert_eq!(x.x, 0.0);
+        assert!((x.width - bc.width / 2.0).abs() < 0.5, "{x:?} {bc:?}");
     }
 
     #[test]
