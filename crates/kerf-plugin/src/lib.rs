@@ -19,7 +19,7 @@
 //!   failed calls in a row. The host and every other plugin keep running.
 //!
 //! ```no_run
-//! use kerf_plugin_host::{Config, Lane, Plugins, Trigger};
+//! use kerf_plugin::{Config, Lane, Plugins, Trigger};
 //!
 //! let mut plugins = Plugins::discover(Config {
 //!     home: "/home/me/.kerf".into(),

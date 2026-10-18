@@ -34,8 +34,8 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 # JSON in and out of every plugin call, as the ABI defines it.
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# Reads `plugin.toml` into cox's `PluginManifest`; only `kerf-plugin-host`'s
+# Reads `plugin.toml` into cox's `PluginManifest`; only `kerf-plugin`'s
 # manifest module touches it.
 toml = "1.1.8"
-# Per-test plugin roots in `kerf-plugin-host` tests.
+# Per-test plugin roots in `kerf-plugin` tests.
 tempfile = "3.27.0"

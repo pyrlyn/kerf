@@ -1,5 +1,5 @@
 [package]
-name = "kerf-plugin-host"
+name = "kerf-plugin"
 description = "Kerf's WASM plugin host: cox's manifest and ABI on the shared wasm-plugin-host engine, with lazy activation and crash-to-disable"
 version.workspace = true
 edition.workspace = true

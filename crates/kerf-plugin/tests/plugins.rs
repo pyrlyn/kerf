@@ -11,9 +11,7 @@
 use std::fs;
 use std::path::Path;
 
-use kerf_plugin_host::{
-    Config, HostError, Lane, MAX_STRIKES, PluginError, Plugins, Status, Trigger,
-};
+use kerf_plugin::{Config, HostError, Lane, MAX_STRIKES, PluginError, Plugins, Status, Trigger};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 
