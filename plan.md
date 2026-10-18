@@ -7,7 +7,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
 | T6 | todo | P1 | 4 | 0% | |
-| T8 | todo | P2 | 5 | 0% | |
 | T12.2 | todo | P2 | 4 | 0% | |
 | T12.3 | todo | P2 | 3 | 0% | |
 | T12.4 | todo | P2 | 4 | 0% | |
@@ -18,9 +17,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 
 `crates/kerf-plugin-host`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on cox's ABI (`cox:host/v1`, extism), not a third copy of cox's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
 
-### T8. LSP results in the semantic layer
-
-Merge language-server answers into `kerf-semantic` where tree-sitter misses (macro bodies, type-resolved references), tagged by source so tree-sitter results stay the base. Add at least one more tree-sitter language. Done when the recall test on the labelled fixture improves with a scripted language server and a second language has its own fixture.
 
 ### T12. UI shell
 

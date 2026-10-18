@@ -16,13 +16,15 @@
 | `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
 | `tree-sitter` | Cargo (workspace dep) | `kerf-semantic`: incremental re-parse from the old tree, and the query engine for tags | https://crates.io/crates/tree-sitter |
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
+| `tree-sitter-python` | Cargo (workspace dep) | `kerf-semantic`: Python grammar and its tags query, the second language | https://crates.io/crates/tree-sitter-python |
+| `gen-lsp-types` | Cargo (workspace dep) | LSP types for answers merged into `kerf-semantic`, generated from the upstream metamodel; `lsp-types` has had no release since 2024-06 | https://crates.io/crates/gen-lsp-types |
 | `fs-kit` | Cargo (workspace dep) | `kerf-core` trust file: canonical paths without the Windows `\\?\` prefix, case-folded prefix checks, atomic writes; `kerf-plugin-lock` and `kerf-binaries`: atomic lockfile writes | https://crates.io/crates/fs-kit |
 | `dirs` | Cargo (workspace dep) | `kerf-core`: the OS config directory for the trust file | https://crates.io/crates/dirs |
 | `serde` | Cargo (workspace dep) | `kerf-core`: typed trust file; `kerf-inspect`: the inspection export's JSON payloads; `kerf-plugin-lock`: (de)serialization of the plugin lockfile; `kerf-binaries`: the ketch lockfile it hands to `ketch sync` | https://crates.io/crates/serde |
 | `toml` | Cargo (workspace dep) | `kerf-core`: trust file format; `kerf-plugin-lock`: reads and writes the plugin lockfile; `kerf-binaries`: renders the ketch lockfile | https://crates.io/crates/toml |
 | `schemars` | Cargo (workspace dev dep) | `kerf-core`: JSON Schema of the trust file, checked by a test; `kerf-plugin-lock` tests: the lockfile's JSON Schema from its types | https://crates.io/crates/schemars |
 | `config-schema` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: fails when the committed schema is stale; shared crate from pyrlyn/crates | https://crates.io/crates/config-schema |
-| `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of the inspection payloads, as cox's ABI uses through extism; `kerf-remote`: protocol params and results; `kerf-core` (dev): writes the generated schema | https://crates.io/crates/serde_json |
+| `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of the inspection payloads, as cox's ABI uses through extism; `kerf-lsp`: LSP messages and the scripted server's answer files; `kerf-remote`: protocol params and results; `kerf-core` (dev): writes the generated schema | https://crates.io/crates/serde_json |
 | `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` and `kerf-binaries` tests: per-test temporary directories; `kerf-remote` tests: workspace roots | https://crates.io/crates/tempfile |
 | `walkdir` | Cargo (workspace dep) | `kerf-binaries`: installed-size audit without following symlinks | https://crates.io/crates/walkdir |
 | `sha2` | Cargo (workspace dev dep) | `kerf-binaries` tests: fixture asset digests | https://crates.io/crates/sha2 |

@@ -10,9 +10,14 @@ repository.workspace = true
 [dependencies]
 # Workspace versions live in the root `[workspace.dependencies]`.
 kerf-core = { workspace = true }
+gen-lsp-types = { workspace = true }
 thiserror = { workspace = true }
 tree-sitter = { workspace = true }
+tree-sitter-python = { workspace = true }
 tree-sitter-rust = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [lints.rust]
 unsafe_code = "forbid"
