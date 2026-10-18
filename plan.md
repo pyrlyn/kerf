@@ -10,7 +10,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T6 | todo | P1 | 4 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
-| T11 | todo | P3 | 3 | 0% | |
 | T12 | todo | P2 | 5 | 0% | |
 | T13 | todo | P3 | 5 | 0% | |
 | T14 | todo | P3 | 4 | 0% | |
@@ -37,10 +36,6 @@ The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-
 ### T8. LSP results in the semantic layer
 
 Merge language-server answers into `kerf-semantic` where tree-sitter misses (macro bodies, type-resolved references), tagged by source so tree-sitter results stay the base. Add at least one more tree-sitter language. Done when the recall test on the labelled fixture improves with a scripted language server and a second language has its own fixture.
-
-### T11. Language-server and debug-adapter binaries through ketch
-
-Install and update language-server and debug-adapter binaries from GitHub releases with checksums, through ketch. Done when a test installs a pinned binary from a local fixture release, rejects a bad checksum, and the core resolves the installed path.
 
 ### T12. UI shell
 
