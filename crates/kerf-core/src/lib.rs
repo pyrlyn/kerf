@@ -15,7 +15,8 @@
 //! The public surface is [`TextBuffer`] (reads and edits), [`Editor`] (a
 //! buffer with a cursor), [`Render`] / [`Frame`] (what a shell draws),
 //! [`EditEvent`] (what the semantic layer consumes), [`BoundedQueue`] / [`EventLoop`],
-//! [`TrustStore`] / [`SpawnPermit`], and [`Error`]. No rope type is exported.
+//! [`TrustStore`] / [`SpawnPermit`], [`read_text`] (a capped text-file read),
+//! and [`Error`]. No rope type is exported.
 
 // Unit tests assert with `expect`/`unwrap`; the deny list is for shipped code.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
@@ -25,6 +26,7 @@ mod editor;
 mod error;
 pub mod event;
 pub mod event_loop;
+mod file;
 pub mod queue;
 pub mod render;
 pub mod trust;
@@ -34,6 +36,7 @@ pub use editor::Editor;
 pub use error::Error;
 pub use event::EditEvent;
 pub use event_loop::{DEFAULT_CAPACITY, EventLoop};
+pub use file::{ReadError, read_text};
 pub use queue::{BoundedQueue, QueueFull};
 pub use render::{Frame, Render};
 pub use trust::{
