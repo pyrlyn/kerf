@@ -23,3 +23,9 @@ tree-sitter = "0.27.1"
 tree-sitter-rust = "0.24.2"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
+# Index the inspection runner (`kerf-inspect`) hands to plugins.
+kerf-semantic = { path = "crates/kerf-semantic" }
+# JSON payloads of plugin exports, the same encoding cox's ABI uses through
+# extism (`docs/architecture.md` §3).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

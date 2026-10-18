@@ -15,6 +15,8 @@
 | `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
 | `tree-sitter` | Cargo (workspace dep) | `kerf-semantic`: incremental re-parse from the old tree, and the query engine for tags | https://crates.io/crates/tree-sitter |
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
+| `serde` | Cargo (workspace dep) | `kerf-inspect`: the inspection export's JSON payloads | https://crates.io/crates/serde |
+| `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of those payloads, as cox's ABI uses through extism | https://crates.io/crates/serde_json |
 
 ## Linkers
 
