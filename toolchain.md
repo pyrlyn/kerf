@@ -6,6 +6,7 @@
 | --- | --- | --- | --- |
 | rustc, cargo, rustfmt, clippy | mise (`mise.toml`, 1.99.0) | Build, format, lint | https://github.com/rust-lang/rust |
 | mise | system | Pins the Rust toolchain | https://github.com/jdx/mise |
+| ketch | mise (`mise.toml`, `github:pyrlyn/ketch`) | `kerf-binaries` installs language servers and debug adapters through its CLI; the crate's tests run it | https://github.com/pyrlyn/ketch |
 
 ## Crates
 
@@ -15,6 +16,12 @@
 | `thiserror` | Cargo (workspace dep) | Typed errors in library crates | https://crates.io/crates/thiserror |
 | `tree-sitter` | Cargo (workspace dep) | `kerf-semantic`: incremental re-parse from the old tree, and the query engine for tags | https://crates.io/crates/tree-sitter |
 | `tree-sitter-rust` | Cargo (workspace dep) | `kerf-semantic`: Rust grammar and its tags query | https://crates.io/crates/tree-sitter-rust |
+| `serde` | Cargo (workspace dep) | `kerf-binaries`: serializes the ketch lockfile | https://crates.io/crates/serde |
+| `toml` | Cargo (workspace dep) | `kerf-binaries`: renders the ketch lockfile | https://crates.io/crates/toml |
+| `tempfile` | Cargo (workspace dep) | `kerf-binaries`: atomic lockfile writes; temp roots in tests | https://crates.io/crates/tempfile |
+| `walkdir` | Cargo (workspace dep) | `kerf-binaries`: installed-size audit without following symlinks | https://crates.io/crates/walkdir |
+| `sha2` | Cargo (workspace dev dep) | `kerf-binaries` tests: fixture asset digests | https://crates.io/crates/sha2 |
+| `hex` | Cargo (workspace dev dep) | `kerf-binaries` tests: hex form of fixture digests | https://crates.io/crates/hex |
 
 ## Linkers
 

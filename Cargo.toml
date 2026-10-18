@@ -21,5 +21,16 @@ thiserror = "2"
 tree-sitter = "0.27.1"
 # Rust grammar and its tags query for `kerf-semantic`.
 tree-sitter-rust = "0.24.2"
+# `kerf-binaries` writes the ketch lockfile it hands to `ketch sync`.
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.8"
+# Atomic lockfile writes in `kerf-binaries`: a crash mid-write must not leave
+# ketch a half lockfile.
+tempfile = "3.27.0"
+# Installed-size audit in `kerf-binaries`; does not follow symlinks by default.
+walkdir = "2.5.0"
+# Fixture digests in `kerf-binaries` tests.
+sha2 = "0.11.1"
+hex = "0.4.3"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
