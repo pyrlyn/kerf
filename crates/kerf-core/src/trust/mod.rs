@@ -15,17 +15,23 @@
 //! are canonicalized before they are compared, because a repository controls
 //! its own symlinks and `..` would otherwise reach a trusted prefix lexically.
 //!
-//! The store is in memory. Where trust is persisted is open point 7 of the
-//! architecture document; only the user may grant trust, so a loader must
-//! never read it from inside a repository.
+//! The store persists to a user-level file in the OS config directory
+//! ([`TrustStore::default_path`], decision 7 of the architecture document),
+//! never to a file inside a repository: a repository is untrusted input and
+//! must not grant itself trust. File I/O lives in the `file` submodule only.
+
+mod file;
+
+pub use file::{MAX_TRUST_FILE_BYTES, TrustFileError};
 
 use std::collections::BTreeSet;
 use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Most folder roots the store holds. Granting is a user action, but a future
-/// loader reads the list from disk, so its size is capped like any other input.
+/// Most folder roots the store holds. Granting is a user action, but the
+/// trust file is read back from disk, so its size is capped like any other
+/// input.
 pub const MAX_TRUSTED_ROOTS: usize = 1024;
 
 /// The kind of process asking to start; named in refusals and trust prompts.
@@ -145,11 +151,11 @@ impl TrustStore {
     /// ancestor for that. A root that no longer exists on disk is matched as
     /// given, so the user can still remove it.
     pub fn revoke(&mut self, root: &Path) -> Vec<PathBuf> {
-        let root = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+        let root = fs_kit::path::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
         let removed: Vec<PathBuf> = self
             .roots
             .iter()
-            .filter(|r| r.starts_with(&root))
+            .filter(|r| fs_kit::path::path_starts_with(r, &root))
             .cloned()
             .collect();
         for r in &removed {
@@ -187,9 +193,10 @@ impl TrustStore {
     }
 
     fn covering_root(&self, canonical: &Path) -> Option<&Path> {
-        // `Path::starts_with` compares whole components, so `/a/bc` is not
-        // inside `/a/b`.
-        self.roots().find(|root| canonical.starts_with(root))
+        // Whole components, so `/a/bc` is not inside `/a/b`; ASCII case is
+        // folded on Windows, where `C:\Repo` and `c:\repo` are one folder.
+        self.roots()
+            .find(|root| fs_kit::path::path_starts_with(canonical, root))
     }
 }
 
@@ -198,7 +205,9 @@ fn canonical_dir(path: &Path) -> Result<PathBuf, TrustError> {
         path: path.to_path_buf(),
         error,
     };
-    let canonical = std::fs::canonicalize(path).map_err(|e| unresolved(e.kind()))?;
+    // Without the Windows `\\?\` prefix, so roots stay readable in the trust
+    // file and match paths spelled either way.
+    let canonical = fs_kit::path::canonicalize(path).map_err(|e| unresolved(e.kind()))?;
     if !canonical.is_dir() {
         return Err(unresolved(io::ErrorKind::NotADirectory));
     }

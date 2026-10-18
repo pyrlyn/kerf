@@ -30,4 +30,7 @@ pub use error::Error;
 pub use event::EditEvent;
 pub use event_loop::{DEFAULT_CAPACITY, EventLoop};
 pub use queue::{BoundedQueue, QueueFull};
-pub use trust::{MAX_TRUSTED_ROOTS, SpawnKind, SpawnPermit, TrustError, TrustStore};
+pub use trust::{
+    MAX_TRUST_FILE_BYTES, MAX_TRUSTED_ROOTS, SpawnKind, SpawnPermit, TrustError, TrustFileError,
+    TrustStore,
+};

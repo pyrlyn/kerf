@@ -400,7 +400,10 @@ calls `TrustStore::authorize(cwd, SpawnKind)` and gets a `SpawnPermit` or a
 typed `TrustError`. The permit has no public constructor, so `kerf-process`
 spawn functions take it by value and run the process in `permit.cwd()`.
 `revoke` answers the removed roots so the supervisor can stop their processes
-(§5.3). Persistence waits on open point 7.
+(§5.3). `TrustStore::load` / `save` keep the roots in `kerf/trust.toml` under
+the OS config directory (`TrustStore::default_path`, decision 7), with a
+committed JSON Schema (`crates/kerf-core/schema/trust.schema.json`), a 4 MiB
+read cap, a 1024-root cap, absolute roots only and an atomic write.
 
 ## 7. Interface versioning
 
