@@ -35,7 +35,7 @@ func unwrap(_ handle: OpaquePointer?) throws -> OpaquePointer {
 /// used from one thread: the main thread in the app.
 public final class Editor {
   public enum Command {
-    case backspace, left, right, undo, redo
+    case backspace, left, right, undo, redo, selectLeft, selectRight
 
     var code: UInt32 {
       switch self {
@@ -44,6 +44,8 @@ public final class Editor {
       case .right: UInt32(KERF_COMMAND_RIGHT)
       case .undo: UInt32(KERF_COMMAND_UNDO)
       case .redo: UInt32(KERF_COMMAND_REDO)
+      case .selectLeft: UInt32(KERF_COMMAND_SELECT_LEFT)
+      case .selectRight: UInt32(KERF_COMMAND_SELECT_RIGHT)
       }
     }
   }
@@ -67,7 +69,7 @@ public final class Editor {
     kerf_editor_free(handle)
   }
 
-  /// Typing or a paste at the cursor.
+  /// Typing or a paste, replacing the selection.
   public func insert(_ text: String) throws {
     let bytes = Array(text.utf8)
     try check(kerf_editor_insert(handle, bytes, bytes.count))
@@ -97,5 +99,19 @@ public final class Editor {
     var out = 0
     try check(kerf_editor_cursor(handle, &out))
     return out
+  }
+
+  /// The selection's fixed end and the cursor as UTF-8 byte offsets; equal
+  /// when nothing is selected.
+  public func selection() throws -> (anchor: Int, cursor: Int) {
+    var (anchor, cursor) = (0, 0)
+    try check(kerf_editor_selection(handle, &anchor, &cursor))
+    return (anchor, cursor)
+  }
+
+  /// Selects from `anchor` to `cursor`, UTF-8 byte offsets in either order.
+  public func select(anchor: Int, cursor: Int) throws {
+    guard anchor >= 0, cursor >= 0 else { throw KerfError(status: KERF_STATUS_OUT_OF_RANGE) }
+    try check(kerf_editor_select(handle, anchor, cursor))
   }
 }

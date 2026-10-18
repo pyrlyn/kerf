@@ -57,6 +57,7 @@ public final class EditorView: NSView, @preconcurrency NSTextInputClient {
 
   /// The caret in view coordinates.
   public var caretFrame: NSRect { caret.frame }
+  var caretHidden: Bool { caret.displayMode == .hidden }
 
   /// Draws the editor now and moves the system caret to it.
   public func render() {
@@ -65,7 +66,9 @@ public final class EditorView: NSView, @preconcurrency NSTextInputClient {
     renderError =
       status == KERF_STATUS_OK || status == KERF_STATUS_NOTHING ? nil : KerfError(status: status)
     var rect = KerfRect()
-    guard kerf_view_caret(view, &rect) == KERF_STATUS_OK else {
+    // As in any Mac text view, a selection shows no caret.
+    let selected = (try? editor.selection()).map { $0.anchor != $0.cursor } ?? false
+    guard !selected, kerf_view_caret(view, &rect) == KERF_STATUS_OK else {
       caret.displayMode = .hidden
       return
     }
@@ -143,12 +146,36 @@ public final class EditorView: NSView, @preconcurrency NSTextInputClient {
 
   @objc public func undo(_ sender: Any?) { edit { try editor.run(.undo) } }
   @objc public func redo(_ sender: Any?) { edit { try editor.run(.redo) } }
+  public override func selectAll(_ sender: Any?) {
+    edit { try editor.select(anchor: 0, cursor: editor.text().utf8.count) }
+  }
+
+  /// Selects `range`, in AppKit's UTF-16 units; the caret goes to its end.
+  public func setSelectedRange(_ range: NSRange) {
+    edit { try select(range) }
+  }
+
+  private func select(_ range: NSRange) throws {
+    let text = try editor.text()
+    // A range off the text or inside a surrogate pair maps to no UTF-8
+    // offset, and the core refuses it.
+    func utf8(_ unit: Int) throws -> Int {
+      guard let at = text.utf16.index(text.startIndex, offsetBy: unit, limitedBy: text.endIndex),
+        let scalar = at.samePosition(in: text.unicodeScalars)
+      else { throw KerfError(status: KERF_STATUS_OUT_OF_RANGE) }
+      return text.utf8.distance(from: text.startIndex, to: scalar)
+    }
+    try editor.select(anchor: utf8(range.location), cursor: utf8(NSMaxRange(range)))
+  }
 
   // MARK: NSTextInputClient
 
   public func insertText(_ string: Any, replacementRange: NSRange) {
     let text = (string as? NSAttributedString)?.string ?? string as? String ?? ""
-    edit { try editor.insert(text) }
+    edit {
+      if replacementRange.location != NSNotFound { try select(replacementRange) }
+      try editor.insert(text)
+    }
   }
 
   public override func doCommand(by selector: Selector) {
@@ -156,9 +183,11 @@ public final class EditorView: NSView, @preconcurrency NSTextInputClient {
     case #selector(deleteBackward(_:)): edit { try editor.run(.backspace) }
     case #selector(moveLeft(_:)): edit { try editor.run(.left) }
     case #selector(moveRight(_:)): edit { try editor.run(.right) }
+    case #selector(moveLeftAndModifySelection(_:)): edit { try editor.run(.selectLeft) }
+    case #selector(moveRightAndModifySelection(_:)): edit { try editor.run(.selectRight) }
     case #selector(insertNewline(_:)): edit { try editor.insert("\n") }
     case #selector(insertTab(_:)): edit { try editor.insert("\t") }
-    // Other bindings need core support (lines, words, selection).
+    // Other bindings need core support (lines, words).
     default: break
     }
   }
@@ -172,12 +201,16 @@ public final class EditorView: NSView, @preconcurrency NSTextInputClient {
   public func validAttributesForMarkedText() -> [NSAttributedString.Key] { [] }
 
   public func selectedRange() -> NSRange {
-    // AppKit counts UTF-16 units; Kerf's cursor is a UTF-8 offset.
-    guard let text = try? editor.text(), let cursor = try? editor.cursor() else {
+    // AppKit counts UTF-16 units; Kerf's offsets are UTF-8.
+    guard let text = try? editor.text(), let (anchor, cursor) = try? editor.selection() else {
       return NSRange(location: NSNotFound, length: 0)
     }
-    let index = text.utf8.index(text.startIndex, offsetBy: cursor)
-    return NSRange(location: text.utf16.distance(from: text.startIndex, to: index), length: 0)
+    let utf16 = { (byte: Int) in
+      text.utf16.distance(
+        from: text.startIndex, to: text.utf8.index(text.startIndex, offsetBy: byte))
+    }
+    let (start, end) = (utf16(min(anchor, cursor)), utf16(max(anchor, cursor)))
+    return NSRange(location: start, length: end - start)
   }
 
   public func attributedSubstring(forProposedRange range: NSRange, actualRange: NSRangePointer?)

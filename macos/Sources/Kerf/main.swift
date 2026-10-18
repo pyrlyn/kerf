@@ -45,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  /// The standard App, File and Edit menus; Undo and Redo reach the
+  /// The standard App, File and Edit menus; the Edit items reach the
   /// focused editor through the responder chain.
   private func mainMenu() -> NSMenu {
     let app = NSMenu()
@@ -57,6 +57,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     edit.addItem(withTitle: "Undo", action: #selector(EditorView.undo(_:)), keyEquivalent: "z")
     edit.addItem(withTitle: "Redo", action: #selector(EditorView.redo(_:)), keyEquivalent: "z")
       .keyEquivalentModifierMask = [.command, .shift]
+    edit.addItem(.separator())
+    edit.addItem(
+      withTitle: "Select All", action: #selector(EditorView.selectAll(_:)), keyEquivalent: "a")
     let bar = NSMenu()
     for menu in [app, file, edit] {
       let item = NSMenuItem()
