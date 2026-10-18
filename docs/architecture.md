@@ -205,7 +205,7 @@ cox's existing families (`events`, `hooks`, `tools`, `invoke`, `net`, `fs`,
 | DAP | `dap:<name> <command args>` (**new** family) | Shape is cox's `mcp:` / `agent:` line. The family is **new**. | Declare a debug adapter the core will spawn. |
 | index | `index` (**new** flag) | **new** — not `context` | Query Kerf's semantic layer (symbols, definitions, references). Read-only. |
 | terminal | `terminal.io` (**new** flag) | **new** — distinct from cox's `terminal.keys` (leader keys, cox §15.3) | Open an integrated terminal the core owns and write input to it. |
-| git | `git.read`, `git.write` (**new** flags) | **new** | Read repository state (`status`, `diff`, `log`); `git.write` covers stage/commit/checkout-style mutations. The core runs `git`, never the plugin. |
+| git | `git.read`, `git.write` (**new** flags) | **new** | Read repository state (`status`, `diff`, `log`); `git.write` covers stage and commit only (§8 decision 6). The core runs `git`, never the plugin. |
 
 Every row above is either a new flag/line or a new family. There is no Kerf
 permission that silently re-binds an existing cox name to a different meaning.

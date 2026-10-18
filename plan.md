@@ -6,8 +6,8 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
-| T4.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
-| T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
+| T4.1 | in progress | P1 | 3 | 10% | Claude Code / opus-5.5 |
+| T4.2 | in progress | P1 | 3 | 10% | Claude Code / opus-5.5 |
 | T6 | todo | P1 | 4 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
@@ -29,6 +29,14 @@ The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-
 #### T4.2. LSP and DAP manifest tables
 
 `[[language_servers]]` and `[[debug_adapters]]` (names as T1 settles them) in `PluginManifest`, JSON Schema, and the docs. The plugin declares the command; the host spawns it.
+
+#### T4 execution plan
+
+1. cox: own rtok worktree, task T380 (T380.1, T380.2) in cox's `plan.md`.
+2. T4.1 in `crates/cox-plugin-api/src/manifest.rs`: `BufferCaps { read, edit }`, `index: bool`, `GitCaps { read, write }`, `io` on `TerminalCaps`; grant lines `buffer.read`, `buffer.edit`, `index`, `terminal.io`, `git.read`, `git.write`; `docs/plugin.schema.json`; `docs/plugins.md` (and the translated copies the way cox keeps them in sync).
+3. T4.2 in the same crate: `LanguageServerDecl` and `DebugAdapterDecl` modelled on `McpDecl` (command required, no URL), validation, grant lines `lsp:<name> <command args>` and `dap:<name> <command args>`, schema, docs.
+4. Tests for every field, validation failure and grant line; existing manifests still parse. cox gate: fmt, clippy `-D warnings`, tests. One cox PR per subtask, CI green, not merged.
+5. Kerf: `docs/architecture.md` §4.1 git row says stage and commit only (§8 decision 6); close T4 here with a PR referencing the cox PRs.
 
 ### T6. Plugin host on `wasm-plugin-host`
 
