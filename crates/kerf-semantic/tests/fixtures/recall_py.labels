@@ -1,0 +1,29 @@
+# Hand labels for recall.py: `def|ref <name> <1-based line>`.
+# Definitions: module constants, classes, functions and methods. References:
+# calls of every form. Out of scope: decorators, attributes, locals, imports.
+def LIMIT 7
+def GREETING 8
+def Point 12
+def manhattan 16
+ref abs 17
+def origin 20
+ref cls 21
+def Circle 24
+def __init__ 25
+ref super 26
+ref __init__ 26
+def area 29
+ref square 30
+def square 33
+def fetch 37
+ref square 38
+ref range 38
+def run 41
+ref origin 42
+ref Circle 43
+ref manhattan 44
+ref int 44
+ref area 44
+ref print 45
+ref len 45
+ref str 45

@@ -40,6 +40,8 @@ jobs:
       contents: read
       actions: write
     with:
+      # ketch alongside Rust: the `kerf-binaries` tests run the real binary.
+      mise-install-args: rust github:pyrlyn/ketch
       # The offscreen render test in `kerf-render` needs a GPU adapter: Mesa's
       # lavapipe on Linux, WARP on Windows, Metal on macOS. KERF_REQUIRE_GPU
       # turns a missing adapter into a failure instead of a silent skip.
