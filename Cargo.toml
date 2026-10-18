@@ -27,24 +27,28 @@ tree-sitter-python = "0.25.0"
 # upstream metamodel. `lsp-types` has had no release since 2024-06; rust-analyzer
 # and ruff moved to this crate. No `url` feature: `Uri` stays a plain string.
 gen-lsp-types = "0.11.0"
-# Workspace Trust file I/O in `kerf-core`: the shared file entry point
-# (canonical paths without the Windows `\\?\` prefix, case-folded prefix
-# checks, atomic writes) instead of a fourth copy of those helpers.
+# Workspace Trust file I/O in `kerf-core` and the plugin lockfile's atomic
+# writes in `kerf-plugin-lock`: the shared file entry point (canonical paths
+# without the Windows `\\?\` prefix, case-folded prefix checks, atomic writes)
+# instead of a fourth copy of those helpers.
 fs-kit = "0.1.0"
 # The OS config directory for the trust file (architecture decision 7):
 # `app-home` resolves XDG paths on every OS, which suits CLIs, not an IDE.
 dirs = "7.0.0"
-# The trust file is TOML read into typed structs (rust.md: Config files).
+# The trust file and the plugin lockfile are TOML read into typed structs
+# (rust.md: Config files); Kerf writes the whole lockfile, so no comment-preserving edits.
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.8"
-# JSON Schema of the trust file, generated in a test only (dev).
+# JSON Schema of the trust file and the plugin lockfile, generated in tests only (dev).
 schemars = "1.2.3"
+# Test-only: the shared stale-schema check from `packages/` (pyrlyn/crates).
+config-schema = "0.1.0"
 # JSON: plugin export payloads in `kerf-inspect` (the encoding cox's ABI uses
 # through extism, `docs/architecture.md` §3), LSP messages in `kerf-lsp` and
 # the scripted server's answer files; also writes the trust schema.
 serde_json = "1.0.154"
-# Throwaway folder trees for the Workspace Trust tests (dev only): removed on
-# drop, so tests never touch a real home or each other's folders.
+# Throwaway folder trees for the Workspace Trust and plugin lockfile tests (dev
+# only): removed on drop, so tests never touch a real home or each other's folders.
 tempfile = "3.27.0"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }

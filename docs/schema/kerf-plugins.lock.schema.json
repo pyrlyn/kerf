@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lockfile",
+  "description": "The plugins a workspace is pinned to, keyed by plugin id.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "description": "Lockfile format version. Only `1` exists.",
+      "$ref": "#/$defs/Format"
+    },
+    "plugins": {
+      "description": "Pinned plugins, keyed by the plugin id from its manifest.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Entry"
+      }
+    }
+  },
+  "$comment": "Generated from crates/kerf-plugin-lock. Regenerate with KERF_BLESS_SCHEMA=1 cargo test -p kerf-plugin-lock.",
+  "additionalProperties": false,
+  "required": [
+    "format"
+  ],
+  "$defs": {
+    "Digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Entry": {
+      "description": "One pinned plugin.",
+      "type": "object",
+      "properties": {
+        "digest": {
+          "description": "cox's package digest of the installed package.",
+          "$ref": "#/$defs/Digest"
+        },
+        "version": {
+          "description": "The version from the plugin's manifest.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "digest"
+      ]
+    },
+    "Format": {
+      "type": "integer",
+      "const": 1
+    }
+  }
+}

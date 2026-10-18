@@ -9,7 +9,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T4.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
 | T6 | todo | P1 | 4 | 0% | |
-| T10 | todo | P2 | 2 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
 | T12 | todo | P2 | 5 | 0% | |
 | T13 | todo | P3 | 5 | 0% | |
@@ -34,10 +33,6 @@ The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-
 
 `crates/kerf-plugin-host`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on cox's ABI (`cox:host/v1`, extism), not a third copy of cox's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
 
-
-### T10. Plugin lockfile
-
-A committed lockfile of plugin ids, versions and package digests. Load refuses a plugin whose digest does not match. Done when tests cover write, read, a digest mismatch and a missing entry.
 
 ### T11. Language-server and debug-adapter binaries through ketch
 
