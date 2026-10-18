@@ -7,11 +7,13 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use std::collections::BTreeSet;
+mod common;
+
 use std::path::Path;
 
+use common::{check, found, labels};
 use gen_lsp_types::{DocumentSymbol, Location, PositionEncodingKind};
-use kerf_semantic::{Role, Semantic, Source};
+use kerf_semantic::{Semantic, Source};
 use serde_json::Value;
 
 /// tree-sitter alone on `recall.rs`: 22 of 23 definitions and 30 of 31
@@ -23,59 +25,6 @@ const RUST_TREE_SITTER: (f64, f64) = (0.956, 0.967);
 const RUST_MERGED: (f64, f64) = (1.0, 1.0);
 /// The upstream Python tags query alone on `recall.py`.
 const PYTHON_TREE_SITTER: (f64, f64) = (1.0, 1.0);
-
-type Label = (Role, String, usize);
-
-fn labels(text: &str) -> BTreeSet<Label> {
-    text.lines()
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(|l| {
-            let mut parts = l.split_whitespace();
-            let role = match parts.next() {
-                Some("def") => Role::Definition,
-                Some("ref") => Role::Reference,
-                other => panic!("bad label role {other:?} in {l:?}"),
-            };
-            let name = parts.next().expect("label name").to_string();
-            let line = parts.next().expect("label line").parse().expect("line");
-            (role, name, line)
-        })
-        .collect()
-}
-
-fn found(semantic: &Semantic, path: &Path) -> BTreeSet<Label> {
-    let symbols = &semantic.symbols(path).unwrap().symbols;
-    symbols
-        .iter()
-        .map(|s| (s.role, s.name.clone(), s.line + 1))
-        .collect()
-}
-
-/// Share of `expected` with `role` that `found` has; with it, the misses.
-fn recall(expected: &BTreeSet<Label>, found: &BTreeSet<Label>, role: Role) -> (f64, Vec<Label>) {
-    let want: Vec<&Label> = expected.iter().filter(|l| l.0 == role).collect();
-    let missed: Vec<Label> = want
-        .iter()
-        .filter(|l| !found.contains(**l))
-        .map(|l| (*l).clone())
-        .collect();
-    #[allow(clippy::cast_precision_loss)]
-    let share = (want.len() - missed.len()) as f64 / want.len() as f64;
-    (share, missed)
-}
-
-/// Prints and checks recall against `min`, and that nothing unlabelled was found:
-/// a guess nobody labelled would be noise in "find references".
-fn check(what: &str, expected: &BTreeSet<Label>, found: &BTreeSet<Label>, min: (f64, f64)) {
-    let (defs, missed_defs) = recall(expected, found, Role::Definition);
-    let (refs, missed_refs) = recall(expected, found, Role::Reference);
-    let extra: Vec<&Label> = found.difference(expected).collect();
-    println!("{what}: definition recall {defs:.3}, missed {missed_defs:?}");
-    println!("{what}: reference recall {refs:.3}, missed {missed_refs:?}");
-    assert!(defs >= min.0, "{what}: definition recall {defs:.3}");
-    assert!(refs >= min.1, "{what}: reference recall {refs:.3}");
-    assert!(extra.is_empty(), "{what}: unlabelled hits {extra:?}");
-}
 
 /// The scripted server's answers: every document symbol, and the ranges in
 /// `uri` of every scripted `textDocument/references` answer.

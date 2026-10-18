@@ -68,9 +68,9 @@ from `[workspace.dependencies]` (AGENTS.md hard rules).
 | Crate | Status | Holds |
 | --- | --- | --- |
 | `crates/kerf-core` | named in [plan.md](../plan.md) T2 | Text buffer, edit events, undo/redo, event loop with bounded queues. No UI toolkit binding — rendering is a trait the shell implements. |
-| `crates/kerf-semantic` | named in [plan.md](../plan.md) T3 | tree-sitter incremental parse, symbol index. Depends on the edit-event type, not on buffer internals. |
+| `crates/kerf-semantic` | named in [plan.md](../plan.md) T3 | tree-sitter incremental parse, symbol index. Depends on the edit-event type, not on buffer internals. Language-server answers merge in through `merge_lsp` (T8), tagged by source. |
 | `crates/kerf-process` | **proposed** | Spawn, supervise, cap and stop LSP, DAP and task processes. The only crate that creates OS processes for those services. |
-| `crates/kerf-lsp` | **proposed** | LSP client (JSON-RPC over stdio) on top of `kerf-process`. Not a plugin. |
+| `crates/kerf-lsp` | added in T8 | LSP client (JSON-RPC over stdio). Not a plugin. Until `kerf-process` exists it holds the per-server caps of §5.2 (message size, inbound queue, stderr ring, timeouts, shutdown budget) and starts processes only through its `Spawn` trait; process counts and the restart budget are still open. |
 | `crates/kerf-dap` | **proposed** | DAP client on top of `kerf-process`. Not a plugin. |
 | `crates/kerf-plugin` | **proposed** | WASM plugin host wiring: `wasm-plugin-host` + `cox-plugin-api` manifest/grant types + Kerf host functions. |
 
@@ -455,7 +455,8 @@ versioned WIT, which Kerf deliberately does *not* take):
 9. **Terminal family naming.** `terminal.io` on cox's `TerminalCaps` (this
    document), or a separate `console` / `shell` capability to keep
    `TerminalCaps` surface-only (cox §15.3)?
-10. **LSP merge points.** Where language-server answers enter `kerf-semantic`
-    (definitions, references, diagnostics) — the layer is core-owned
-    ([research.md §1](../research.md#1-conclusion)); the merge API is not
-    defined until T3 or a later task.
+10. **LSP merge points.** Settled for definitions and references in T8:
+    `Semantic::merge_lsp` adds `documentSymbol` definitions and
+    `references` ranges that tree-sitter missed, tagged
+    `Source::LanguageServer`, and an edit drops them. Diagnostics are still
+    open.

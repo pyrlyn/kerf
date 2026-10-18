@@ -31,3 +31,5 @@ gen-lsp-types = "0.11.0"
 serde_json = "1.0.154"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
+# Path dependency for the LSP end-to-end test, which merges into the index.
+kerf-semantic = { path = "crates/kerf-semantic" }

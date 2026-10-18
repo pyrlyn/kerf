@@ -80,6 +80,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kerf-lsp"
+version = "0.0.0"
+dependencies = [
+ "gen-lsp-types",
+ "kerf-semantic",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "kerf-semantic"
 version = "0.0.0"
 dependencies = [
