@@ -55,6 +55,18 @@ Plan:
 1. Add the workflow (Linux x86_64, macOS arm64, Windows x86_64 — no Intel Mac).
 2. Add the crates to `toolchain.md`, and to `rust.md` if they are new.
 
+### T12.1. Rendering trait, editor and toolkit choice
+
+- `research.md`: Slint through slint-bindings against Flutter through slint_dart, with primary sources; the choice and why.
+- `kerf-core`: the `Render` trait and the `Frame` the core hands it, and an `Editor` (buffer + cursor) that turns typing, backspace, cursor moves, undo and redo into `TextBuffer` edits.
+
+Plan:
+
+1. Compare both paths in `research.md` §6 (slint-bindings and slint_dart READMEs at `4d61045`, Slint and Flutter docs, Slint's licence).
+2. `crates/kerf-core/src/render.rs`: `Render`, `Frame` (buffer, cursor byte, line, column).
+3. `crates/kerf-core/src/editor.rs`: `Editor`; `TextBuffer::line_col`, `prev_boundary`, `next_boundary` for whole-character steps.
+4. Verify: unit tests for each editor operation and a recording `Render`; `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
+
 ### T3. Semantic layer: incremental parse and symbol index
 
 `crates/kerf-semantic`. Done when an edit re-parses only the changed file incrementally, the index updates only that file's symbols, and a test measures definition and reference recall on a labelled Rust fixture.

@@ -11,7 +11,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T6 | todo | P1 | 4 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
-| T12.1 | in progress | P2 | 3 | 90% | Claude Code / claude-opus-5-5 |
 | T12.2 | in progress | P2 | 4 | 80% | Claude Code / claude-opus-5-5 |
 | T13 | todo | P3 | 5 | 0% | |
 | T14 | todo | P3 | 4 | 0% | |
@@ -46,18 +45,6 @@ Install and update language-server and debug-adapter binaries from GitHub releas
 ### T12. UI shell
 
 Split when claimed (500-line task cap). The first window. Pick Slint through slint-bindings or Flutter through slint_dart against each other, and record why in `research.md`. Rendering is a trait `kerf-core` defines (`docs/architecture.md` §2.1); the shell implements it in its own crate. Plugin UI and redraw-on-request come in later tasks. The two subtasks together are done when a `kerf` binary opens a file, shows it, takes typing, undo and redo through `kerf-core`, and a headless UI test covers that path.
-
-#### T12.1. Rendering trait, editor and toolkit choice
-
-- `research.md`: Slint through slint-bindings against Flutter through slint_dart, with primary sources; the choice and why.
-- `kerf-core`: the `Render` trait and the `Frame` the core hands it, and an `Editor` (buffer + cursor) that turns typing, backspace, cursor moves, undo and redo into `TextBuffer` edits.
-
-Plan:
-
-1. Compare both paths in `research.md` §6 (slint-bindings and slint_dart READMEs at `4d61045`, Slint and Flutter docs, Slint's licence).
-2. `crates/kerf-core/src/render.rs`: `Render`, `Frame` (buffer, cursor byte, line, column).
-3. `crates/kerf-core/src/editor.rs`: `Editor`; `TextBuffer::line_col`, `prev_boundary`, `next_boundary` for whole-character steps.
-4. Verify: unit tests for each editor operation and a recording `Render`; `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
 
 #### T12.2. Slint window and the `kerf` binary
 
