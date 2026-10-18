@@ -11,7 +11,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T6 | todo | P1 | 4 | 0% | |
 | T8 | todo | P2 | 5 | 0% | |
 | T11 | todo | P3 | 3 | 0% | |
-| T12.2 | in progress | P2 | 4 | 80% | Claude Code / claude-opus-5-5 |
 | T13 | todo | P3 | 5 | 0% | |
 | T14 | todo | P3 | 4 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
@@ -41,21 +40,6 @@ Merge language-server answers into `kerf-semantic` where tree-sitter misses (mac
 ### T11. Language-server and debug-adapter binaries through ketch
 
 Install and update language-server and debug-adapter binaries from GitHub releases with checksums, through ketch. Done when a test installs a pinned binary from a local fixture release, rejects a bad checksum, and the core resolves the installed path.
-
-### T12. UI shell
-
-Split when claimed (500-line task cap). The first window. Pick Slint through slint-bindings or Flutter through slint_dart against each other, and record why in `research.md`. Rendering is a trait `kerf-core` defines (`docs/architecture.md` §2.1); the shell implements it in its own crate. Plugin UI and redraw-on-request come in later tasks. The two subtasks together are done when a `kerf` binary opens a file, shows it, takes typing, undo and redo through `kerf-core`, and a headless UI test covers that path.
-
-#### T12.2. Slint window and the `kerf` binary
-
-`crates/kerf-shell` on the toolkit T12.1 picks: the window, a `Render` implementation, keys forwarded to the `Editor`, and the `kerf` binary. Depends on T12.1.
-
-Plan:
-
-1. `ui/editor.slint` compiled by `slint-build`: a `FocusScope` that forwards keys, the text, a caret placed by a hidden `Text`'s measured width, a status line.
-2. `src/lib.rs`: `SlintView` (`Render`), `Shell` (key → `Editor` call → redraw), `read_text` with a size cap and a UTF-8 check; `src/main.rs`: `kerf [FILE]`.
-3. `tests/ui.rs` on `i-slint-backend-testing`: open a temp file, type, undo, redo, backspace, and read the shown text and status back through accessibility ids.
-4. CI: Linux system packages through ci-rust's `setup-command` only if the build needs them; `toolchain.md` rows.
 
 ### T13. Remote development
 
