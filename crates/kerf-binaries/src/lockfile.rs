@@ -10,7 +10,6 @@
 //! ketch's (its `docs/LOCKFILE.md`), so Kerf keeps no schema for it and writes
 //! only the keys it needs.
 
-use std::io::Write;
 use std::path::Path;
 
 use serde::Serialize;
@@ -55,19 +54,13 @@ pub(crate) fn render(spec: &BinarySpec, target: &str, pin: &Pin) -> Result<Strin
     Ok(toml::to_string(&lock)?)
 }
 
-/// Writes `text` to `path` through a temporary file in the same directory, so
-/// ketch never reads a half-written lockfile.
+/// Writes `text` to `path` atomically, so ketch never reads a half-written
+/// lockfile.
 pub(crate) fn write_atomic(path: &Path, text: &str) -> Result<(), Error> {
-    let io = |source| Error::Io {
+    fs_kit::write::atomic(path, text).map_err(|source| Error::Io {
         path: path.to_path_buf(),
         source,
-    };
-    let dir = path.parent().unwrap_or(Path::new("."));
-    let mut file = tempfile::NamedTempFile::new_in(dir).map_err(io)?;
-    file.write_all(text.as_bytes()).map_err(io)?;
-    file.as_file().sync_all().map_err(io)?;
-    file.persist(path).map_err(|e| io(e.error))?;
-    Ok(())
+    })
 }
 
 #[cfg(test)]

@@ -140,7 +140,7 @@ impl Installer {
             spec.bin.clone()
         };
         let link = self.root.join("bin").join(file);
-        let path = match std::fs::canonicalize(&link) {
+        let path = match fs_kit::path::canonicalize(&link) {
             Ok(path) => path,
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
                 return Err(Error::NotInstalled {
@@ -149,11 +149,11 @@ impl Installer {
             }
             Err(source) => return Err(Error::Io { path: link, source }),
         };
-        let root = std::fs::canonicalize(&self.root).map_err(|source| Error::Io {
+        let root = fs_kit::path::canonicalize(&self.root).map_err(|source| Error::Io {
             path: self.root.clone(),
             source,
         })?;
-        if !path.starts_with(&root) {
+        if !fs_kit::path::path_starts_with(&path, &root) {
             return Err(Error::OutsideRoot { path });
         }
         if !path.is_file() {

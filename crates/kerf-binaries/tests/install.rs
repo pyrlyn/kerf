@@ -179,8 +179,12 @@ fn installs_a_pinned_binary_and_resolves_its_path() {
     let path = install(&f.installer, &spec).unwrap();
 
     assert_eq!(std::fs::read(&path).unwrap(), bytes);
-    let root = std::fs::canonicalize(f.installer.root()).unwrap();
-    assert!(path.starts_with(&root), "{}", path.display());
+    let root = fs_kit::path::canonicalize(f.installer.root()).unwrap();
+    assert!(
+        fs_kit::path::path_starts_with(&path, &root),
+        "{}",
+        path.display()
+    );
     assert_eq!(f.installer.resolve(&spec).unwrap(), path);
 
     // Installing the same pin again is a no-op that resolves the same path.

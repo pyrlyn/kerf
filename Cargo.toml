@@ -22,7 +22,7 @@ tree-sitter = "0.27.1"
 # Rust grammar and its tags query for `kerf-semantic`.
 tree-sitter-rust = "0.24.2"
 # Workspace Trust file I/O in `kerf-core` and the plugin lockfile's atomic
-# writes in `kerf-plugin-lock`: the shared file entry point (canonical paths
+# writes in `kerf-plugin-lock` and `kerf-binaries`: the shared file entry point (canonical paths
 # without the Windows `\\?\` prefix, case-folded prefix checks, atomic writes)
 # instead of a fourth copy of those helpers.
 fs-kit = "0.1.0"
