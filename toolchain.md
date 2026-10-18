@@ -21,8 +21,10 @@
 | `toml` | Cargo (workspace dep) | `kerf-core`: trust file format; `kerf-plugin-lock`: reads and writes the plugin lockfile | https://crates.io/crates/toml |
 | `schemars` | Cargo (workspace dev dep) | `kerf-core`: JSON Schema of the trust file, checked by a test; `kerf-plugin-lock` tests: the lockfile's JSON Schema from its types | https://crates.io/crates/schemars |
 | `config-schema` | Cargo (workspace dev dep) | `kerf-plugin-lock` tests: fails when the committed schema is stale; shared crate from pyrlyn/crates | https://crates.io/crates/config-schema |
-| `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of the inspection payloads, as cox's ABI uses through extism; `kerf-core` (dev): writes the generated schema | https://crates.io/crates/serde_json |
-| `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` tests: per-test temporary directories | https://crates.io/crates/tempfile |
+| `serde_json` | Cargo (workspace dep) | `kerf-inspect`: JSON encoding of the inspection payloads, as cox's ABI uses through extism; `kerf-remote`: protocol params and results; `kerf-core` (dev): writes the generated schema | https://crates.io/crates/serde_json |
+| `tokio-util` | Cargo (workspace dep, `codec`) | `kerf-remote`: `LinesCodec` frames the UI <-> host wire with a maximum line length, synchronously on a `BytesMut` | https://crates.io/crates/tokio-util |
+| `jsonrpsee-types` | Cargo (workspace dep) | `kerf-remote`: JSON-RPC 2.0 request, response and error envelopes | https://crates.io/crates/jsonrpsee-types |
+| `tempfile` | Cargo (workspace dev dep) | `kerf-core` Workspace Trust tests: throwaway folder trees removed on drop; `kerf-plugin-lock` tests: per-test temporary directories; `kerf-remote` tests: workspace roots | https://crates.io/crates/tempfile |
 
 ## Linkers
 
