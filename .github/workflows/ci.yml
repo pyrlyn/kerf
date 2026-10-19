@@ -52,3 +52,50 @@ jobs:
         fi
         echo KERF_REQUIRE_GPU=1 >> "$GITHUB_ENV"
       matrix: ${{ vars.MACOS_CI_DISABLED == 'true' && '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}]' || '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"xcode-27","target":"aarch64-apple-darwin"},{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}]' }}
+
+  # Which runner the macOS host job uses: pyrlyn/ci's macos-runner action reads
+  # MACOS_RUNNER (unset or `hosted` = the hosted label, `xcode-27-local` = the
+  # dedicated Mac).
+  macos-runner:
+    if: vars.MACOS_CI_DISABLED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      value: ${{ steps.r.outputs.value }}
+    steps:
+      - id: r
+        uses: pyrlyn/ci/.github/actions/macos-runner@3fa4275e525269297a4d193c427f965ad9dd7544 # main
+        with:
+          runner: ${{ vars.MACOS_RUNNER }}
+          value: '["xcode-27"]'
+
+  # The macOS host (`macos/`, T12.4). SwiftPM cannot build Cargo crates, so
+  # Cargo builds kerf-ffi's static library first; the Swift tests then draw
+  # through it on the runner's Metal device.
+  macos-host:
+    needs: macos-runner
+    if: >-
+      vars.MACOS_CI_DISABLED != 'true'
+      && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    # Fork pull requests keep the hosted label: a self-hosted runner would run their code.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(needs.macos-runner.outputs.value)[0] || 'xcode-27' }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pyrlyn/ci/.github/actions/setup-xcode@3fa4275e525269297a4d193c427f965ad9dd7544 # main
+        with:
+          version: "27"
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+        with:
+          install_args: rust
+      - name: Build the C ABI library
+        run: cargo build --locked -p kerf-ffi
+      - name: Format
+        run: xcrun swift-format lint --strict -r Sources Tests Package.swift
+      - name: Build
+        run: swift build --arch arm64
+      - name: Test
+        run: swift test --arch arm64

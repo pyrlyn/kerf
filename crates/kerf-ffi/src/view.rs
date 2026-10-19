@@ -389,15 +389,23 @@ fn renderer(target: &mut Target) -> &mut GpuRenderer {
 #[cfg(target_os = "macos")]
 impl Surface {
     fn render(&mut self, frame: &kerf_core::Frame<'_>) -> Result<(), KerfStatus> {
+        let size = Size {
+            width: self.config.width,
+            height: self.config.height,
+            scale: self.scale,
+        };
         let texture = match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(t)
             | wgpu::CurrentSurfaceTexture::Suboptimal(t) => t,
-            // Hidden or busy: the host asks again on its next redraw.
+            // Hidden or busy: no pixels this time, but the caret the host
+            // draws must still follow the edit. The host redraws later.
             wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+                self.renderer.lay_out(frame, size);
                 return Err(KerfStatus::Nothing);
             }
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
                 self.surface.configure(&self.device, &self.config);
+                self.renderer.lay_out(frame, size);
                 return Err(KerfStatus::Nothing);
             }
             wgpu::CurrentSurfaceTexture::Validation => return Err(KerfStatus::Gpu),
@@ -405,11 +413,6 @@ impl Surface {
         let target = texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let size = Size {
-            width: self.config.width,
-            height: self.config.height,
-            scale: self.scale,
-        };
         self.renderer
             .draw(frame, size, &target)
             .map_err(|_| KerfStatus::Gpu)?;

@@ -81,6 +81,13 @@ impl GpuRenderer {
         self.caret
     }
 
+    /// Lay `frame` out without drawing it, for a frame the target cannot
+    /// take (a hidden window): the host's system caret still follows edits.
+    pub fn lay_out(&mut self, frame: &Frame<'_>, size: Size) -> Option<Rect> {
+        self.caret = self.layout.update(frame, &self.theme, size);
+        self.caret
+    }
+
     /// Draw `frame` into `target`, a view of `size`.
     pub fn draw(
         &mut self,
@@ -88,7 +95,7 @@ impl GpuRenderer {
         size: Size,
         target: &wgpu::TextureView,
     ) -> Result<Option<Rect>, Error> {
-        self.caret = self.layout.update(frame, &self.theme, size);
+        self.lay_out(frame, size);
         self.viewport.update(
             &self.queue,
             Resolution {
