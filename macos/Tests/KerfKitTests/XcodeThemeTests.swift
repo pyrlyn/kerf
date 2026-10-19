@@ -13,6 +13,7 @@ import Testing
 private func writeTheme(_ dir: TempDir, _ name: String, background: String, font: String) throws {
   let plist: [String: Any] = [
     "DVTSourceTextBackground": background,
+    "DVTSourceTextSelectionColor": "0.2 0.4 0.6 1",
     "DVTSourceTextSyntaxColors": ["xcode.syntax.plain": "1 1 1 0.85"],
     "DVTSourceTextSyntaxFonts": ["xcode.syntax.plain": font],
   ]
@@ -31,6 +32,7 @@ private func writeTheme(_ dir: TempDir, _ name: String, background: String, font
     let theme = XcodeTheme.current(dark: true, defaults: defaults, folders: [dir.url])
     #expect(theme.background == RGBA(26, 51, 77))
     #expect(theme.text == RGBA(255, 255, 255, 217))
+    #expect(theme.selection == RGBA(51, 102, 153))
     #expect(theme.fontFamily == "Menlo")
     #expect(theme.fontSize == 14)
     #expect(theme.lineHeight > 14)
@@ -57,6 +59,15 @@ private func writeTheme(_ dir: TempDir, _ name: String, background: String, font
     #expect(XcodeTheme.font("Menlo-Regular - 12.0")?.pointSize == 12)
     #expect(XcodeTheme.font("Menlo-Regular") == nil)
     #expect(XcodeTheme.font("Menlo-Regular - 0") == nil)
+  }
+
+  @Test func kerfsThemeSelectsWithTheSystemsColour() {
+    for dark in [false, true] {
+      let theme = EditorTheme.kerf(dark: dark)
+      #expect(theme.selection == EditorTheme.systemSelection(dark: dark))
+      #expect(theme.selection != theme.background)
+    }
+    #expect(EditorTheme.systemSelection(dark: false) != EditorTheme.systemSelection(dark: true))
   }
 
   @Test func kerfsThemeUsesAFamilyKerfsFontDatabaseCanFind() {

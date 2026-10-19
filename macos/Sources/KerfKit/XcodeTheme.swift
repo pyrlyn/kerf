@@ -25,6 +25,7 @@ public struct EditorTheme: Equatable, Sendable {
   public var lineHeight: CGFloat
   public var background: RGBA
   public var text: RGBA
+  public var selection: RGBA
 
   /// Kerf's own Light and Dark themes, for a Mac without Xcode.
   public static func kerf(dark: Bool) -> EditorTheme {
@@ -34,8 +35,23 @@ public struct EditorTheme: Equatable, Sendable {
       fontSize: 12,
       lineHeight: NSLayoutManager().defaultLineHeight(for: font),
       background: dark ? RGBA(31, 31, 36) : RGBA(255, 255, 255),
-      text: dark ? RGBA(223, 223, 224) : RGBA(29, 29, 31)
+      text: dark ? RGBA(223, 223, 224) : RGBA(29, 29, 31),
+      selection: systemSelection(dark: dark)
     )
+  }
+
+  /// The system's selected-text background for this appearance, as every
+  /// Mac text view fills it; it follows the user's highlight colour.
+  static func systemSelection(dark: Bool) -> RGBA {
+    var rgba = dark ? RGBA(63, 99, 139) : RGBA(179, 215, 255)
+    NSAppearance(named: dark ? .darkAqua : .aqua)?.performAsCurrentDrawingAppearance {
+      guard let c = NSColor.selectedTextBackgroundColor.usingColorSpace(.sRGB) else { return }
+      let byte = { (v: CGFloat) in UInt8((min(max(v, 0), 1) * 255).rounded()) }
+      rgba = RGBA(
+        byte(c.redComponent), byte(c.greenComponent), byte(c.blueComponent),
+        byte(c.alphaComponent))
+    }
+    return rgba
   }
 
   /// Calls `body` with this theme as a `KerfTheme`; the caret is the
@@ -49,6 +65,7 @@ public struct EditorTheme: Equatable, Sendable {
         line_height: Float(lineHeight),
         background: background.tuple,
         text: text.tuple,
+        selection: selection.tuple,
         caret: (0, 0, 0, 0),
         caret_width: 1,
         draw_caret: 0
@@ -76,7 +93,7 @@ public enum XcodeTheme {
     // out of the theme folders.
     guard !name.contains("/") else { return .kerf(dark: dark) }
     for folder in folders {
-      if let theme = load(folder.appending(path: name)) { return theme }
+      if let theme = load(folder.appending(path: name), dark: dark) { return theme }
     }
     return .kerf(dark: dark)
   }
@@ -97,9 +114,10 @@ public enum XcodeTheme {
     return folders
   }
 
-  /// One `.xccolortheme` property list: background, plain text colour and
-  /// plain text font.
-  public static func load(_ url: URL) -> EditorTheme? {
+  /// One `.xccolortheme` property list: background, plain text colour,
+  /// selection colour and plain text font. A theme without a selection
+  /// colour gets the system's for `dark`.
+  public static func load(_ url: URL, dark: Bool = false) -> EditorTheme? {
     guard let data = try? Data(contentsOf: url),
       let plist = try? PropertyListSerialization.propertyList(from: data, format: nil)
         as? [String: Any],
@@ -115,7 +133,9 @@ public enum XcodeTheme {
       fontSize: font.pointSize,
       lineHeight: NSLayoutManager().defaultLineHeight(for: font),
       background: background,
-      text: text
+      text: text,
+      selection: (plist["DVTSourceTextSelectionColor"] as? String).flatMap(color)
+        ?? EditorTheme.systemSelection(dark: dark)
     )
   }
 

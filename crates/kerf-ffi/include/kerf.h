@@ -47,6 +47,16 @@
 #define KERF_COMMAND_REDO 4
 
 /**
+ * Move the cursor one character left, keeping the selection's anchor.
+ */
+#define KERF_COMMAND_SELECT_LEFT 5
+
+/**
+ * Move the cursor one character right, keeping the selection's anchor.
+ */
+#define KERF_COMMAND_SELECT_RIGHT 6
+
+/**
  * What a call did. Every function returns one; out-parameters are written
  * only on `KERF_STATUS_OK`.
  */
@@ -87,6 +97,10 @@ typedef enum KerfStatus {
    * Unknown command number, or a call this view kind does not support.
    */
   KERF_STATUS_UNSUPPORTED = 8,
+  /**
+   * An offset is past the end of the text or inside a UTF-8 character.
+   */
+  KERF_STATUS_OUT_OF_RANGE = 9,
 } KerfStatus;
 
 /**
@@ -128,6 +142,10 @@ typedef struct KerfTheme {
    * Text.
    */
   uint8_t text[4];
+  /**
+   * Fill behind selected text.
+   */
+  uint8_t selection[4];
   /**
    * Caret, when Kerf draws it.
    */
@@ -224,6 +242,30 @@ enum KerfStatus kerf_editor_command(struct KerfEditor *ed, uint32_t command);
  * `ed` is a live handle; `out` is valid for a write.
  */
 enum KerfStatus kerf_editor_cursor(struct KerfEditor *ed, size_t *out);
+
+/**
+ * The selection as UTF-8 byte offsets: its fixed end in `*out_anchor` and
+ * the cursor in `*out_cursor`, equal when nothing is selected.
+ *
+ * # Safety
+ *
+ * `ed` is a live handle; both out-pointers are valid for a write.
+ */
+enum KerfStatus kerf_editor_selection(struct KerfEditor *ed,
+                                      size_t *out_anchor,
+                                      size_t *out_cursor);
+
+/**
+ * Select from `anchor` to `cursor`, UTF-8 byte offsets in either order;
+ * equal offsets place the cursor with nothing selected.
+ * `KERF_STATUS_OUT_OF_RANGE`, and no change, when either is past the end or
+ * inside a character.
+ *
+ * # Safety
+ *
+ * `ed` is a live handle.
+ */
+enum KerfStatus kerf_editor_select(struct KerfEditor *ed, size_t anchor, size_t cursor);
 
 /**
  * Copy the whole text as UTF-8 into `buf` (`cap` bytes, no NUL written)

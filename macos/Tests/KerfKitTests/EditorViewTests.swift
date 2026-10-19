@@ -60,6 +60,44 @@ final class TempDir {
     #expect(view.caretFrame.height == theme.lineHeight)
   }
 
+  /// Shift-arrows, AppKit's UTF-16 ranges and replacing a selection, with
+  /// the system caret hidden while something is selected.
+  @Test func selectsAndReplacesTextThroughTheView() throws {
+    let view = try EditorView(
+      editor: Editor(), frame: NSRect(x: 0, y: 0, width: 320, height: 60),
+      themeFor: { EditorTheme.kerf(dark: $0) })
+    let window = NSWindow(
+      contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
+    window.contentView = view
+    #expect(window.makeFirstResponder(view))
+    let none = NSRange(location: NSNotFound, length: 0)
+    view.insertText("é hello world", replacementRange: none)
+    // "é" is one UTF-16 unit but two UTF-8 bytes.
+    view.setSelectedRange(NSRange(location: 8, length: 5))
+    #expect(view.selectedRange() == NSRange(location: 8, length: 5))
+    #expect(view.caretHidden)
+    view.insertText("kerf", replacementRange: none)
+    #expect(try view.editor.text() == "é hello kerf")
+    #expect(view.selectedRange() == NSRange(location: 12, length: 0))
+    #expect(!view.caretHidden)
+
+    view.doCommand(by: #selector(NSResponder.moveLeftAndModifySelection(_:)))
+    view.doCommand(by: #selector(NSResponder.moveLeftAndModifySelection(_:)))
+    #expect(view.selectedRange() == NSRange(location: 10, length: 2))
+    view.doCommand(by: #selector(NSResponder.deleteBackward(_:)))
+    #expect(try view.editor.text() == "é hello ke")
+    view.undo(nil)
+    #expect(try view.editor.text() == "é hello kerf")
+
+    view.insertText("hi", replacementRange: NSRange(location: 2, length: 5))
+    #expect(try view.editor.text() == "é hi kerf")
+    view.selectAll(nil)
+    #expect(view.selectedRange() == NSRange(location: 0, length: 9))
+    view.doCommand(by: #selector(NSResponder.moveRight(_:)))
+    #expect(view.selectedRange() == NSRange(location: 9, length: 0))
+    #expect(view.renderError == nil)
+  }
+
   @Test func followsTheAppearance() throws {
     let view = try EditorView(
       editor: Editor(), frame: NSRect(x: 0, y: 0, width: 100, height: 40),

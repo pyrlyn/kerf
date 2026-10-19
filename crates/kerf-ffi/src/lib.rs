@@ -44,6 +44,10 @@ pub const KERF_COMMAND_RIGHT: u32 = 2;
 pub const KERF_COMMAND_UNDO: u32 = 3;
 /// Redo the last undone edit.
 pub const KERF_COMMAND_REDO: u32 = 4;
+/// Move the cursor one character left, keeping the selection's anchor.
+pub const KERF_COMMAND_SELECT_LEFT: u32 = 5;
+/// Move the cursor one character right, keeping the selection's anchor.
+pub const KERF_COMMAND_SELECT_RIGHT: u32 = 6;
 
 /// What a call did. Every function returns one; out-parameters are written
 /// only on `KERF_STATUS_OK`.
@@ -68,6 +72,8 @@ pub enum KerfStatus {
     Panic = 7,
     /// Unknown command number, or a call this view kind does not support.
     Unsupported = 8,
+    /// An offset is past the end of the text or inside a UTF-8 character.
+    OutOfRange = 9,
 }
 
 /// An editor: one buffer and its cursor. Opaque to the host.
@@ -242,6 +248,8 @@ pub unsafe extern "C" fn kerf_editor_command(ed: *mut KerfEditor, command: u32) 
             KERF_COMMAND_RIGHT => editor.move_right(),
             KERF_COMMAND_UNDO => editor.undo().is_some(),
             KERF_COMMAND_REDO => editor.redo().is_some(),
+            KERF_COMMAND_SELECT_LEFT => editor.select_left(),
+            KERF_COMMAND_SELECT_RIGHT => editor.select_right(),
             _ => return Err(KerfStatus::Unsupported),
         };
         if did {
@@ -261,6 +269,52 @@ pub unsafe extern "C" fn kerf_editor_command(ed: *mut KerfEditor, command: u32) 
 pub unsafe extern "C" fn kerf_editor_cursor(ed: *mut KerfEditor, out: *mut usize) -> KerfStatus {
     // SAFETY: forwarded from the caller.
     guard(|| unsafe { put(out, editor(ed)?.cursor()) })
+}
+
+/// The selection as UTF-8 byte offsets: its fixed end in `*out_anchor` and
+/// the cursor in `*out_cursor`, equal when nothing is selected.
+///
+/// # Safety
+///
+/// `ed` is a live handle; both out-pointers are valid for a write.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn kerf_editor_selection(
+    ed: *mut KerfEditor,
+    out_anchor: *mut usize,
+    out_cursor: *mut usize,
+) -> KerfStatus {
+    guard(|| {
+        // SAFETY: forwarded from the caller.
+        let editor = unsafe { editor(ed) }?;
+        if out_cursor.is_null() {
+            return Err(KerfStatus::NullPointer);
+        }
+        // SAFETY: forwarded from the caller; both checked non-null before
+        // either is written.
+        unsafe { put(out_anchor, editor.anchor()).and_then(|()| put(out_cursor, editor.cursor())) }
+    })
+}
+
+/// Select from `anchor` to `cursor`, UTF-8 byte offsets in either order;
+/// equal offsets place the cursor with nothing selected.
+/// `KERF_STATUS_OUT_OF_RANGE`, and no change, when either is past the end or
+/// inside a character.
+///
+/// # Safety
+///
+/// `ed` is a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn kerf_editor_select(
+    ed: *mut KerfEditor,
+    anchor: usize,
+    cursor: usize,
+) -> KerfStatus {
+    guard(|| {
+        // SAFETY: forwarded from the caller.
+        unsafe { editor(ed) }?
+            .select(anchor, cursor)
+            .map_err(|_| KerfStatus::OutOfRange)
+    })
 }
 
 /// Copy the whole text as UTF-8 into `buf` (`cap` bytes, no NUL written)

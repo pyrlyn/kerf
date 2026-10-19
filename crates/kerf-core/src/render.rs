@@ -6,6 +6,8 @@
 //! what is shown, a shell crate draws it. Keeping the trait here is what lets
 //! `kerf-core` stay free of any UI toolkit.
 
+use std::ops::Range;
+
 use crate::buffer::TextBuffer;
 
 /// Everything one redraw shows, borrowed from the core for the call.
@@ -19,6 +21,22 @@ pub struct Frame<'a> {
     pub line: usize,
     /// Cursor column in bytes from the start of its line.
     pub col: usize,
+    /// The selection's fixed end, a byte offset on a character boundary;
+    /// equal to `cursor` when nothing is selected.
+    pub anchor: usize,
+}
+
+impl Frame<'_> {
+    /// The selected bytes in buffer order; `None` when nothing is selected.
+    #[must_use]
+    pub fn selection(&self) -> Option<Range<usize>> {
+        span(self.anchor, self.cursor)
+    }
+}
+
+/// The bytes between two offsets in either order; `None` when they meet.
+pub(crate) fn span(a: usize, b: usize) -> Option<Range<usize>> {
+    (a != b).then(|| a.min(b)..a.max(b))
 }
 
 /// A surface that draws a [`Frame`]. The shell implements it for its toolkit;

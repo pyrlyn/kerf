@@ -217,7 +217,7 @@ impl TextBuffer {
 
     /// Reject a range that is reversed, past the end, or off a character
     /// boundary. Ropey would panic on any of these.
-    fn check_range(&self, range: &Range<usize>) -> Result<(), Error> {
+    pub(crate) fn check_range(&self, range: &Range<usize>) -> Result<(), Error> {
         let len = self.text.len_bytes();
         if range.start > range.end || range.end > len {
             return Err(Error::OutOfBounds {
