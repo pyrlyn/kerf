@@ -6,11 +6,10 @@
 //! driven by already-decoded requests.
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, Read};
+use std::io;
 use std::path::{Component, Path, PathBuf};
 
-use kerf_core::{EditEvent, TextBuffer};
+use kerf_core::{EditEvent, ReadError, TextBuffer};
 use kerf_semantic::Semantic;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -174,23 +173,18 @@ impl Host {
         }
     }
 
-    /// Reads at most one byte past the cap, so a huge file is refused
-    /// without being loaded.
     fn read_file(&self, path: &str, rel: &Path) -> Result<String, RemoteError> {
         let cap = self.limits.max_buffer_bytes;
         let fail = |source| RemoteError::Io {
             path: path.to_owned(),
             source,
         };
-        let limit = u64::try_from(cap).unwrap_or(u64::MAX).saturating_add(1);
-        let mut bytes = Vec::new();
-        File::open(self.root.join(rel))
-            .and_then(|f| f.take(limit).read_to_end(&mut bytes))
-            .map_err(fail)?;
-        if bytes.len() > cap {
-            return Err(RemoteError::BufferTooLarge { cap });
-        }
-        String::from_utf8(bytes).map_err(|e| fail(io::Error::new(io::ErrorKind::InvalidData, e)))
+        let limit = u64::try_from(cap).unwrap_or(u64::MAX);
+        kerf_core::read_text(&self.root.join(rel), limit).map_err(|e| match e {
+            ReadError::Io(e) => fail(e),
+            ReadError::TooLarge { .. } => RemoteError::BufferTooLarge { cap },
+            ReadError::NotUtf8 => fail(io::ErrorKind::InvalidData.into()),
+        })
     }
 }
 

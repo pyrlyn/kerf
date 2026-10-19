@@ -22,6 +22,9 @@ pub enum Error {
     /// A glyph left the atlas between preparing and drawing.
     #[error("text draw: {0}")]
     Draw(#[from] glyphon::RenderError),
+    /// Copying the frame back from the GPU failed.
+    #[error("pixel readback: {0}")]
+    Readback(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Draws frames into any texture of the format it was made for.
@@ -186,28 +189,8 @@ impl Offscreen {
         theme: Theme,
         size: Size,
     ) -> Self {
-        let max = device.limits().max_texture_dimension_2d;
-        let size = Size {
-            width: size.width.clamp(1, max),
-            height: size.height.clamp(1, max),
-            ..size
-        };
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("kerf offscreen"),
-            size: wgpu::Extent3d {
-                width: size.width,
-                height: size.height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: OFFSCREEN_FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let renderer = GpuRenderer::new(device, queue, OFFSCREEN_FORMAT, layout, theme);
+        let (texture, view, size) = target(device, size);
         Self {
             renderer,
             texture,
@@ -216,16 +199,87 @@ impl Offscreen {
         }
     }
 
-    /// The texture frames are drawn into.
-    #[must_use]
-    pub fn texture(&self) -> &wgpu::Texture {
-        &self.texture
+    /// A new texture of `size`; the renderer and its loaded fonts stay.
+    pub fn resize(&mut self, size: Size) {
+        (self.texture, self.view, self.size) = target(&self.renderer.device, size);
     }
 
     /// The renderer, for the caret rectangle and theme changes.
     pub fn renderer(&mut self) -> &mut GpuRenderer {
         &mut self.renderer
     }
+
+    /// The last frame as tightly packed sRGB RGBA rows, top row first.
+    pub fn read_rgba(&self) -> Result<Vec<u8>, Error> {
+        let (device, queue) = (&self.renderer.device, &self.renderer.queue);
+        let (width, height) = (self.size.width, self.size.height);
+        let packed = width as usize * 4;
+        // Copies need rows padded to the alignment; the padding is cut below.
+        let row = (width * 4).next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("kerf readback"),
+            size: u64::from(row) * u64::from(height),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        encoder.copy_texture_to_buffer(
+            self.texture.as_image_copy(),
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(row),
+                    rows_per_image: Some(height),
+                },
+            },
+            self.texture.size(),
+        );
+        queue.submit(Some(encoder.finish()));
+        let (tx, rx) = std::sync::mpsc::channel();
+        buffer.map_async(wgpu::MapMode::Read, .., move |mapped| {
+            let _ = tx.send(mapped);
+        });
+        device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(readback)?;
+        rx.recv().map_err(readback)?.map_err(readback)?;
+        let data = buffer.get_mapped_range(..).map_err(readback)?;
+        Ok(data
+            .chunks(row as usize)
+            .flat_map(|line| &line[..packed])
+            .copied()
+            .collect())
+    }
+}
+
+fn target(device: &wgpu::Device, size: Size) -> (wgpu::Texture, wgpu::TextureView, Size) {
+    let max = device.limits().max_texture_dimension_2d;
+    let size = Size {
+        width: size.width.clamp(1, max),
+        height: size.height.clamp(1, max),
+        ..size
+    };
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("kerf offscreen"),
+        size: wgpu::Extent3d {
+            width: size.width,
+            height: size.height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: OFFSCREEN_FORMAT,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    (texture, view, size)
+}
+
+fn readback(e: impl std::error::Error + Send + Sync + 'static) -> Error {
+    Error::Readback(Box::new(e))
 }
 
 impl Render for Offscreen {

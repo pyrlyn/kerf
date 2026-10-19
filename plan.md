@@ -6,7 +6,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
-| T12.3 | todo | P2 | 3 | 0% | |
 | T12.4 | todo | P2 | 4 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
 
@@ -14,10 +13,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 ### T12. UI shell
 
 Split when claimed (500-line task cap). The first window. The creator's direction (`research.md` §7): native controls in a native host per platform, talking to the Rust core through a C ABI, and Kerf's own GPU renderer for the editor surface inside a native view. The editor looks native: like Xcode's on macOS and like Visual Studio's on Windows (`research.md` §7, "Look"); the host supplies the font, colours and caret, the renderer hard-codes none. macOS first; Windows and Linux hosts are in `roadmap.md`. Rendering is a trait `kerf-core` defines (`docs/architecture.md` §2.1). Plugin UI and redraw-on-request come in later tasks. The subtasks together are done when the macOS app opens a file, shows it in the GPU-drawn editor view inside a native AppKit window, takes typing, undo and redo through `kerf-core`, and headless tests cover that path.
-
-#### T12.3. C ABI for native hosts
-
-A `cdylib`/`staticlib` crate with a generated C header: open a file into an `Editor`, attach the renderer to a host view (an `NSView` on macOS), resize, forward text input, keys, undo and redo, render. Every pointer and length from the host is checked; a panic never crosses the boundary. Done when a Rust end-to-end test drives the whole path through the C functions only.
 
 #### T12.4. macOS host
 

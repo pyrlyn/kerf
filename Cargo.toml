@@ -73,8 +73,14 @@ wgpu = "30.0.1"
 # fallback, bidi) through a glyph atlas; re-exports the `cosmic-text` it uses,
 # so the two never drift apart.
 glyphon = "0.12.0"
-# Test-only: blocks on wgpu's async adapter and device requests.
+# Blocks on wgpu's async adapter and device requests: `kerf-ffi` creates the
+# device behind a synchronous C call, and `kerf-render`'s tests do the same.
 pollster = "1.0.1"
+# C header for `kerf-ffi`, generated from its Rust declarations in a test
+# (dev only) that fails when the committed `include/kerf.h` is stale. 0.29.3,
+# not the newer 0.29.4: extism (under `kerf-plugin`) pins `=0.29.3`. Default
+# features off: they are only the `cbindgen` CLI (clap).
+cbindgen = { version = "0.29.3", default-features = false }
 # Blocking HTTP client for `kerf-complete`'s fill-in-the-middle requests on a
 # worker thread: no async runtime in the core, a whole-call timeout and a body
 # limit built in. No gzip, so the body limit caps what is actually decoded.
@@ -95,3 +101,5 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 # The index the inspection runner (`kerf-inspect`) hands to plugins, and the
 # index the LSP end-to-end test merges into.
 kerf-semantic = { path = "crates/kerf-semantic" }
+# The GPU editor renderer `kerf-ffi` exposes to native hosts.
+kerf-render = { path = "crates/kerf-render" }
