@@ -38,7 +38,7 @@
 | `jsonrpsee-types` | Cargo (workspace dep) | `kerf-remote`: JSON-RPC 2.0 request, response and error envelopes | https://crates.io/crates/jsonrpsee-types |
 | `wgpu` | Cargo (workspace dep) | `kerf-render`: one GPU API over Metal, D3D12 and Vulkan, and a surface from the host's native view | https://crates.io/crates/wgpu |
 | `glyphon` | Cargo (workspace dep) | `kerf-render`: draws `cosmic-text` layouts on wgpu through a glyph atlas; its re-exported `cosmic-text` shapes the text | https://crates.io/crates/glyphon |
-| `pollster` | Cargo (workspace dep) | `kerf-ffi`: blocks on wgpu's async adapter and device requests behind a synchronous C call; `kerf-render` tests: the same for the offscreen test | https://crates.io/crates/pollster |
+| `pollster` | Cargo (workspace dep) | `kerf-render` tests: blocks on wgpu's async adapter and device requests for the offscreen test | https://crates.io/crates/pollster |
 | `slint-bindings-core` | Cargo (workspace dep, git pin by `rev`) | `kerf-slint`: host-driven Slint embedding, a platform with no event loop that renders a component into a buffer the host owns; `publish = false`, so not on crates.io | https://github.com/pyrlyn/slint-bindings/tree/main/crates/slint-bindings-core |
 | `slint` | Cargo (workspace dep, `=1.18.1`, software renderer only) | `kerf-slint`: the editor component's runtime; the exact pin is the one `slint-bindings-core` forces | https://crates.io/crates/slint |
 | `slint-build` | Cargo (workspace build dep, `=1.18.1`) | `kerf-slint`: compiles `ui/editor.slint` to Rust at build time, in lockstep with `slint` | https://crates.io/crates/slint-build |

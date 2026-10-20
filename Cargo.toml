@@ -103,6 +103,8 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 kerf-semantic = { path = "crates/kerf-semantic" }
 # The GPU editor renderer `kerf-ffi` exposes to native hosts.
 kerf-render = { path = "crates/kerf-render" }
+# The Slint editor surface `kerf-ffi` exposes to native hosts.
+kerf-slint = { path = "crates/kerf-slint" }
 # Host-driven Slint embedding for `kerf-slint` (research.md §7): a Slint
 # platform with no event loop that renders into a buffer the host owns. A git
 # pin: the crate is `publish = false`.

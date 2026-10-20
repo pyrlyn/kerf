@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! The editor view: `kerf-render` drawing into an offscreen texture or into
-//! a surface over the host's native view.
+//! The editor view: `kerf-slint` drawing on the CPU into a frame the host
+//! copies out and presents in its own view.
+
+use std::thread::{self, ThreadId};
 
 use kerf_core::Render;
-use kerf_render::{GpuRenderer, Layout, Offscreen, Size, Theme};
+use kerf_slint::{SlintView, Theme};
 
 use crate::{KerfEditor, KerfStatus, editor, guard, put, text};
 
 /// Longest font family name the host can pass.
 const MAX_FAMILY_BYTES: usize = 256;
 
-/// The editor's look, in logical pixels (`kerf_render::Theme`). Colours are
+/// The editor's look, in logical points (`kerf_slint::Theme`). Colours are
 /// sRGB red, green, blue, alpha.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -41,7 +43,8 @@ pub struct KerfTheme {
     pub draw_caret: u8,
 }
 
-/// A rectangle in physical pixels from the view's top-left corner.
+/// A rectangle in logical points from the view's top-left corner, the unit
+/// AppKit and WinUI place their views in.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct KerfRect {
@@ -57,23 +60,18 @@ pub struct KerfRect {
 
 /// A view the editor is drawn into. Opaque to the host.
 pub struct KerfView {
-    target: Target,
+    /// Slint objects are `!Send`: only the creating thread may touch them.
+    owner: ThreadId,
+    view: SlintView,
+    /// The last frame. Kept between renders because Slint repaints only what
+    /// changed into the buffer it painted before.
+    frame: Vec<u8>,
 }
 
-enum Target {
-    Offscreen(Box<Offscreen>),
-    #[cfg(target_os = "macos")]
-    Surface(Box<Surface>),
-}
-
-#[cfg(target_os = "macos")]
-struct Surface {
-    surface: wgpu::Surface<'static>,
-    config: wgpu::SurfaceConfiguration,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    renderer: GpuRenderer,
-    scale: f32,
+impl From<kerf_slint::Error> for KerfStatus {
+    fn from(_: kerf_slint::Error) -> Self {
+        Self::Render
+    }
 }
 
 /// The theme behind a host pointer; null means Kerf's own.
@@ -102,52 +100,32 @@ unsafe fn theme(theme: *const KerfTheme) -> Result<Theme, KerfStatus> {
     })
 }
 
-/// The view behind a host handle.
+/// The view behind a host handle, refused off the thread that made it.
 ///
 /// # Safety
 ///
 /// `view` is null or a live handle no other call is using.
-unsafe fn view<'a>(view: *mut KerfView) -> Result<&'a mut Target, KerfStatus> {
+unsafe fn view<'a>(view: *mut KerfView) -> Result<&'a mut KerfView, KerfStatus> {
     // SAFETY: the caller promised a live, unaliased handle or null.
-    unsafe { view.as_mut() }
-        .map(|v| &mut v.target)
-        .ok_or(KerfStatus::NullPointer)
+    let view = unsafe { view.as_mut() }.ok_or(KerfStatus::NullPointer)?;
+    if view.owner != thread::current().id() {
+        return Err(KerfStatus::WrongThread);
+    }
+    Ok(view)
 }
 
-fn device(
-    instance: &wgpu::Instance,
-    surface: Option<&wgpu::Surface<'_>>,
-) -> Result<(wgpu::Adapter, wgpu::Device, wgpu::Queue), KerfStatus> {
-    let request = |force_fallback_adapter| {
-        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            force_fallback_adapter,
-            compatible_surface: surface,
-            ..Default::default()
-        }))
-    };
-    // A software adapter (WARP, lavapipe) beats no editor at all.
-    let adapter = request(false)
-        .or_else(|_| request(true))
-        .map_err(|_| KerfStatus::Gpu)?;
-    let (device, queue) =
-        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
-            .map_err(|_| KerfStatus::Gpu)?;
-    Ok((adapter, device, queue))
-}
-
-fn boxed(target: Target) -> *mut KerfView {
-    Box::into_raw(Box::new(KerfView { target }))
-}
-
-/// A view that draws into its own texture, for tests, thumbnails and hosts
-/// that composite the editor themselves. `theme` may be null.
+/// A view of `width`×`height` physical pixels at `scale` pixels per point
+/// (2 on Retina). `theme` may be null. Every later call on the view comes
+/// from the thread that made it, the host's UI thread: Slint is
+/// single-threaded, and a call from another thread gets
+/// `KERF_STATUS_WRONG_THREAD`.
 ///
 /// # Safety
 ///
 /// `theme` is null or a readable `KerfTheme`; `out` is valid for a write of
 /// one pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn kerf_view_new_offscreen(
+pub unsafe extern "C" fn kerf_view_new(
     width: u32,
     height: u32,
     scale: f32,
@@ -160,90 +138,36 @@ pub unsafe extern "C" fn kerf_view_new_offscreen(
         if out.is_null() {
             return Err(KerfStatus::NullPointer);
         }
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
-        let (_, device, queue) = device(&instance, None)?;
-        let size = Size {
-            width,
-            height,
-            scale,
-        };
-        let view = Offscreen::new(&device, &queue, Layout::new(), theme, size);
+        let view = SlintView::new(width, height, scale, &theme)?;
+        let view = Box::into_raw(Box::new(KerfView {
+            owner: thread::current().id(),
+            view,
+            frame: Vec::new(),
+        }));
         // SAFETY: forwarded from the caller; checked non-null above.
-        unsafe { put(out, boxed(Target::Offscreen(Box::new(view)))) }
+        unsafe { put(out, view) }
     })
 }
 
-/// A view that draws into the host's `NSView` (it gets a Metal layer).
-/// `width` and `height` are the view's size in physical pixels; `theme` may
-/// be null.
-///
-/// # Safety
-///
-/// `ns_view` is a live `NSView` that outlives the returned view, and this is
-/// called on the main thread; `theme` is null or a readable `KerfTheme`;
-/// `out` is valid for a write of one pointer.
-#[cfg(target_os = "macos")]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn kerf_view_attach_appkit(
-    ns_view: *mut std::ffi::c_void,
-    width: u32,
-    height: u32,
-    scale: f32,
-    theme: *const KerfTheme,
-    out: *mut *mut KerfView,
-) -> KerfStatus {
-    use wgpu::rwh::{AppKitDisplayHandle, AppKitWindowHandle, RawDisplayHandle, RawWindowHandle};
-    guard(|| {
-        let ns_view = std::ptr::NonNull::new(ns_view).ok_or(KerfStatus::NullPointer)?;
-        // SAFETY: forwarded from the caller.
-        let theme = unsafe { self::theme(theme) }?;
-        if out.is_null() {
-            return Err(KerfStatus::NullPointer);
-        }
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
-        let target = wgpu::SurfaceTargetUnsafe::RawHandle {
-            raw_display_handle: Some(RawDisplayHandle::AppKit(AppKitDisplayHandle::new())),
-            raw_window_handle: RawWindowHandle::AppKit(AppKitWindowHandle::new(ns_view)),
-        };
-        // SAFETY: the host promised a live NSView that outlives the surface.
-        let surface =
-            unsafe { instance.create_surface_unsafe(target) }.map_err(|_| KerfStatus::Gpu)?;
-        let (adapter, device, queue) = device(&instance, Some(&surface))?;
-        let config = surface
-            .get_default_config(&adapter, width.max(1), height.max(1))
-            .ok_or(KerfStatus::Gpu)?;
-        surface.configure(&device, &config);
-        let renderer = GpuRenderer::new(&device, &queue, config.format, Layout::new(), theme);
-        let view = Surface {
-            surface,
-            config,
-            device,
-            queue,
-            renderer,
-            scale,
-        };
-        // SAFETY: forwarded from the caller; checked non-null above.
-        unsafe { put(out, boxed(Target::Surface(Box::new(view)))) }
-    })
-}
-
-/// Free a view. Null is ignored.
+/// Free a view on the thread that made it. Null is ignored; from another
+/// thread the view is leaked, because dropping Slint objects there is
+/// undefined behaviour.
 ///
 /// # Safety
 ///
 /// `view` is null or a live handle not used again after this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kerf_view_free(view: *mut KerfView) {
-    if !view.is_null() {
+    // SAFETY: forwarded from the caller.
+    if unsafe { self::view(view) }.is_ok() {
         // SAFETY: the handle came from `Box::into_raw` and is not used again.
         let view = unsafe { Box::from_raw(view) };
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || drop(view)));
     }
 }
 
-/// New size in physical pixels and scale factor (2 on Retina).
+/// New size in physical pixels and scale factor (2 on Retina). A zero
+/// dimension becomes one pixel.
 ///
 /// # Safety
 ///
@@ -257,22 +181,9 @@ pub unsafe extern "C" fn kerf_view_resize(
 ) -> KerfStatus {
     guard(|| {
         // SAFETY: forwarded from the caller.
-        match unsafe { self::view(view) }? {
-            Target::Offscreen(o) => o.resize(Size {
-                width,
-                height,
-                scale,
-            }),
-            #[cfg(target_os = "macos")]
-            Target::Surface(s) => {
-                let max = s.device.limits().max_texture_dimension_2d;
-                s.config.width = width.clamp(1, max);
-                s.config.height = height.clamp(1, max);
-                s.scale = scale;
-                s.surface.configure(&s.device, &s.config);
-            }
-        }
-        Ok(())
+        Ok(unsafe { self::view(view) }?
+            .view
+            .resize(width, height, scale)?)
     })
 }
 
@@ -288,13 +199,14 @@ pub unsafe extern "C" fn kerf_view_set_theme(
 ) -> KerfStatus {
     guard(|| {
         // SAFETY: forwarded from the caller.
-        let (target, theme) = unsafe { (self::view(view)?, self::theme(theme)?) };
-        renderer(target).set_theme(theme);
+        let (view, theme) = unsafe { (self::view(view)?, self::theme(theme)?) };
+        view.view.set_theme(&theme);
         Ok(())
     })
 }
 
-/// Draw `ed` into the view.
+/// Draw `ed` into the view's frame. `KERF_STATUS_NOTHING` when Slint
+/// repainted nothing, so the host can keep showing the last frame.
 ///
 /// # Safety
 ///
@@ -303,12 +215,14 @@ pub unsafe extern "C" fn kerf_view_set_theme(
 pub unsafe extern "C" fn kerf_view_render(view: *mut KerfView, ed: *mut KerfEditor) -> KerfStatus {
     guard(|| {
         // SAFETY: forwarded from the caller.
-        let (target, editor) = unsafe { (self::view(view)?, editor(ed)?) };
-        let frame = editor.frame();
-        match target {
-            Target::Offscreen(o) => o.render(&frame).map_err(|_| KerfStatus::Gpu),
-            #[cfg(target_os = "macos")]
-            Target::Surface(s) => s.render(&frame),
+        let (view, editor) = unsafe { (self::view(view)?, editor(ed)?) };
+        view.view.render(&editor.frame())?;
+        // A resize leaves the old frame; Slint repaints all of a new size.
+        view.frame.resize(view.view.frame_len(), 0);
+        if view.view.draw(&mut view.frame)? {
+            Ok(())
+        } else {
+            Err(KerfStatus::Nothing)
         }
     })
 }
@@ -323,7 +237,8 @@ pub unsafe extern "C" fn kerf_view_render(view: *mut KerfView, ed: *mut KerfEdit
 pub unsafe extern "C" fn kerf_view_caret(view: *mut KerfView, out: *mut KerfRect) -> KerfStatus {
     guard(|| {
         // SAFETY: forwarded from the caller.
-        let r = renderer(unsafe { self::view(view) }?)
+        let r = unsafe { self::view(view) }?
+            .view
             .caret()
             .ok_or(KerfStatus::Nothing)?;
         let rect = KerfRect {
@@ -337,9 +252,10 @@ pub unsafe extern "C" fn kerf_view_caret(view: *mut KerfView, out: *mut KerfRect
     })
 }
 
-/// Copy an offscreen view's last frame into `buf` as sRGB RGBA rows, top
-/// row first, `width * height * 4` bytes, written to `*out_len`. As with
-/// `kerf_editor_copy_text`, a short `buf` gets `KERF_STATUS_TOO_LARGE`.
+/// Copy the last rendered frame into `buf`: premultiplied RGBA8 rows, top
+/// row first, no padding, `width * height * 4` bytes, written to `*out_len`.
+/// As with `kerf_editor_copy_text`, a short `buf` gets
+/// `KERF_STATUS_TOO_LARGE`. Before the first render the frame is empty.
 ///
 /// # Safety
 ///
@@ -353,19 +269,8 @@ pub unsafe extern "C" fn kerf_view_read_rgba(
     out_len: *mut usize,
 ) -> KerfStatus {
     guard(|| {
-        // Without AppKit, offscreen is the only kind; the match stays so the
-        // macOS arm is not a separate code path.
-        #[cfg_attr(
-            not(target_os = "macos"),
-            allow(clippy::infallible_destructuring_match)
-        )]
         // SAFETY: forwarded from the caller.
-        let o = match unsafe { self::view(view) }? {
-            Target::Offscreen(o) => o,
-            #[cfg(target_os = "macos")]
-            Target::Surface(_) => return Err(KerfStatus::Unsupported),
-        };
-        let rgba = o.read_rgba().map_err(|_| KerfStatus::Gpu)?;
+        let rgba = &unsafe { self::view(view) }?.frame;
         // SAFETY: forwarded from the caller.
         unsafe { put(out_len, rgba.len()) }?;
         if rgba.len() > cap {
@@ -374,52 +279,9 @@ pub unsafe extern "C" fn kerf_view_read_rgba(
         if buf.is_null() {
             return Err(KerfStatus::NullPointer);
         }
-        // SAFETY: `buf` is writable for `cap >= rgba.len()` bytes and cannot
-        // overlap a `Vec` Kerf just allocated.
+        // SAFETY: `buf` is writable for `cap >= rgba.len()` bytes, and the
+        // host cannot hold a pointer into the view's own frame.
         unsafe { std::ptr::copy_nonoverlapping(rgba.as_ptr(), buf, rgba.len()) };
         Ok(())
     })
-}
-
-fn renderer(target: &mut Target) -> &mut GpuRenderer {
-    match target {
-        Target::Offscreen(o) => o.renderer(),
-        #[cfg(target_os = "macos")]
-        Target::Surface(s) => &mut s.renderer,
-    }
-}
-
-#[cfg(target_os = "macos")]
-impl Surface {
-    fn render(&mut self, frame: &kerf_core::Frame<'_>) -> Result<(), KerfStatus> {
-        let size = Size {
-            width: self.config.width,
-            height: self.config.height,
-            scale: self.scale,
-        };
-        let texture = match self.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(t)
-            | wgpu::CurrentSurfaceTexture::Suboptimal(t) => t,
-            // Hidden or busy: no pixels this time, but the caret the host
-            // draws must still follow the edit. The host redraws later.
-            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
-                self.renderer.lay_out(frame, size);
-                return Err(KerfStatus::Nothing);
-            }
-            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
-                self.surface.configure(&self.device, &self.config);
-                self.renderer.lay_out(frame, size);
-                return Err(KerfStatus::Nothing);
-            }
-            wgpu::CurrentSurfaceTexture::Validation => return Err(KerfStatus::Gpu),
-        };
-        let target = texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        self.renderer
-            .draw(frame, size, &target)
-            .map_err(|_| KerfStatus::Gpu)?;
-        self.queue.present(texture);
-        Ok(())
-    }
 }

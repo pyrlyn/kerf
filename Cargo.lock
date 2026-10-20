@@ -3123,10 +3123,8 @@ version = "0.0.0"
 dependencies = [
  "cbindgen",
  "kerf-core",
- "kerf-render",
- "pollster 1.0.1",
+ "kerf-slint",
  "tempfile",
- "wgpu",
 ]
 
 [[package]]

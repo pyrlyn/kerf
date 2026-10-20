@@ -86,9 +86,9 @@ typedef enum KerfStatus {
    */
   KERF_STATUS_NOTHING = 5,
   /**
-   * No GPU adapter or device, or a draw failed.
+   * The view could not be drawn: a Slint platform error.
    */
-  KERF_STATUS_GPU = 6,
+  KERF_STATUS_RENDER = 6,
   /**
    * Kerf panicked; the handle may be in a bad state and should be freed.
    */
@@ -101,6 +101,11 @@ typedef enum KerfStatus {
    * An offset is past the end of the text or inside a UTF-8 character.
    */
   KERF_STATUS_OUT_OF_RANGE = 9,
+  /**
+   * A view call came from a thread other than the one that made the view;
+   * Slint is single-threaded.
+   */
+  KERF_STATUS_WRONG_THREAD = 10,
 } KerfStatus;
 
 /**
@@ -114,7 +119,7 @@ typedef struct KerfEditor KerfEditor;
 typedef struct KerfView KerfView;
 
 /**
- * The editor's look, in logical pixels (`kerf_render::Theme`). Colours are
+ * The editor's look, in logical points (`kerf_slint::Theme`). Colours are
  * sRGB red, green, blue, alpha.
  */
 typedef struct KerfTheme {
@@ -162,7 +167,8 @@ typedef struct KerfTheme {
 } KerfTheme;
 
 /**
- * A rectangle in physical pixels from the view's top-left corner.
+ * A rectangle in logical points from the view's top-left corner, the unit
+ * AppKit and WinUI place their views in.
  */
 typedef struct KerfRect {
   /**
@@ -284,42 +290,27 @@ enum KerfStatus kerf_editor_copy_text(struct KerfEditor *ed,
                                       size_t *out_len);
 
 /**
- * A view that draws into its own texture, for tests, thumbnails and hosts
- * that composite the editor themselves. `theme` may be null.
+ * A view of `width`×`height` physical pixels at `scale` pixels per point
+ * (2 on Retina). `theme` may be null. Every later call on the view comes
+ * from the thread that made it, the host's UI thread: Slint is
+ * single-threaded, and a call from another thread gets
+ * `KERF_STATUS_WRONG_THREAD`.
  *
  * # Safety
  *
  * `theme` is null or a readable `KerfTheme`; `out` is valid for a write of
  * one pointer.
  */
-enum KerfStatus kerf_view_new_offscreen(uint32_t width,
-                                        uint32_t height,
-                                        float scale,
-                                        const struct KerfTheme *theme,
-                                        struct KerfView **out);
-
-#if defined(__APPLE__)
-/**
- * A view that draws into the host's `NSView` (it gets a Metal layer).
- * `width` and `height` are the view's size in physical pixels; `theme` may
- * be null.
- *
- * # Safety
- *
- * `ns_view` is a live `NSView` that outlives the returned view, and this is
- * called on the main thread; `theme` is null or a readable `KerfTheme`;
- * `out` is valid for a write of one pointer.
- */
-enum KerfStatus kerf_view_attach_appkit(void *ns_view,
-                                        uint32_t width,
-                                        uint32_t height,
-                                        float scale,
-                                        const struct KerfTheme *theme,
-                                        struct KerfView **out);
-#endif
+enum KerfStatus kerf_view_new(uint32_t width,
+                              uint32_t height,
+                              float scale,
+                              const struct KerfTheme *theme,
+                              struct KerfView **out);
 
 /**
- * Free a view. Null is ignored.
+ * Free a view on the thread that made it. Null is ignored; from another
+ * thread the view is leaked, because dropping Slint objects there is
+ * undefined behaviour.
  *
  * # Safety
  *
@@ -328,7 +319,8 @@ enum KerfStatus kerf_view_attach_appkit(void *ns_view,
 void kerf_view_free(struct KerfView *view);
 
 /**
- * New size in physical pixels and scale factor (2 on Retina).
+ * New size in physical pixels and scale factor (2 on Retina). A zero
+ * dimension becomes one pixel.
  *
  * # Safety
  *
@@ -349,7 +341,8 @@ enum KerfStatus kerf_view_resize(struct KerfView *view,
 enum KerfStatus kerf_view_set_theme(struct KerfView *view, const struct KerfTheme *theme);
 
 /**
- * Draw `ed` into the view.
+ * Draw `ed` into the view's frame. `KERF_STATUS_NOTHING` when Slint
+ * repainted nothing, so the host can keep showing the last frame.
  *
  * # Safety
  *
@@ -368,9 +361,10 @@ enum KerfStatus kerf_view_render(struct KerfView *view, struct KerfEditor *ed);
 enum KerfStatus kerf_view_caret(struct KerfView *view, struct KerfRect *out);
 
 /**
- * Copy an offscreen view's last frame into `buf` as sRGB RGBA rows, top
- * row first, `width * height * 4` bytes, written to `*out_len`. As with
- * `kerf_editor_copy_text`, a short `buf` gets `KERF_STATUS_TOO_LARGE`.
+ * Copy the last rendered frame into `buf`: premultiplied RGBA8 rows, top
+ * row first, no padding, `width * height * 4` bytes, written to `*out_len`.
+ * As with `kerf_editor_copy_text`, a short `buf` gets
+ * `KERF_STATUS_TOO_LARGE`. Before the first render the frame is empty.
  *
  * # Safety
  *
