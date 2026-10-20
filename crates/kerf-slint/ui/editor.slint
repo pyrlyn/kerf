@@ -1,0 +1,99 @@
+// Copyright (c) 2026 Ivan Tugay
+// SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
+// Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
+
+// The editor surface. `kerf-core` owns the text, the cursor and the selection;
+// this file only draws what `kerf-slint` hands it, one entry per visible line.
+
+export struct EditorLine {
+    text: string,
+    selected: bool,
+    // The line's text before the selection starts. Slint measures it, so the
+    // fill starts where the shaped glyphs actually end.
+    selection-before: string,
+    selected-text: string,
+    // The selection runs past this line's break: the fill reaches the right
+    // edge, as in Xcode and Visual Studio, so a selected empty line shows.
+    selection-to-end: bool,
+}
+
+export component EditorComponent inherits Window {
+    in property <color> background-color: #ffffff;
+    in property <color> text-color: #1d1d1f;
+    in property <color> selection-color: #b3d7ff;
+    in property <color> caret-color: #000000;
+    in property <string> family;
+    in property <length> text-size: 13px;
+    in property <length> line-height: 17px;
+    in property <length> caret-width: 1px;
+    // Hosts with a system caret (`NSTextInsertionIndicator`) leave this off.
+    in property <bool> draw-caret;
+    in property <[EditorLine]> lines;
+    in property <int> caret-line;
+    in property <string> caret-prefix;
+
+    // Read by the host to place its own caret. An empty `Text` still reports
+    // a preferred width, so an empty prefix is measured as zero here.
+    out property <length> caret-x: root.caret-prefix == "" ? 0 : caret-measure.preferred-width;
+    out property <length> caret-y: root.caret-line * root.line-height;
+
+    background: root.background-color;
+
+    caret-measure := Text {
+        visible: false;
+        text: root.caret-prefix;
+        font-family: root.family;
+        font-size: root.text-size;
+    }
+
+    for line[i] in root.lines: Rectangle {
+        x: 0;
+        y: i * root.line-height;
+        width: root.width;
+        height: root.line-height;
+
+        before := Text {
+            visible: false;
+            text: line.selection-before;
+            font-family: root.family;
+            font-size: root.text-size;
+        }
+
+        picked := Text {
+            visible: false;
+            text: line.selected-text;
+            font-family: root.family;
+            font-size: root.text-size;
+        }
+
+        property <length> from: line.selection-before == "" ? 0 : before.preferred-width;
+        property <length> span: line.selected-text == "" ? 0 : picked.preferred-width;
+
+        if line.selected: Rectangle {
+            x: from;
+            width: line.selection-to-end ? parent.width - from : span;
+            height: parent.height;
+            background: root.selection-color;
+        }
+
+        Text {
+            x: 0;
+            width: parent.width;
+            height: parent.height;
+            text: line.text;
+            color: root.text-color;
+            font-family: root.family;
+            font-size: root.text-size;
+            vertical-alignment: center;
+            wrap: no-wrap;
+        }
+    }
+
+    if root.draw-caret: Rectangle {
+        x: root.caret-x;
+        y: root.caret-y;
+        width: root.caret-width;
+        height: root.line-height;
+        background: root.caret-color;
+    }
+}
