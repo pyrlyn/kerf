@@ -6,7 +6,7 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
-| T16.1 | todo | P1 | 4 | 0% | |
+| T16.1 | in progress | P1 | 4 | 80% | Claude / opus-5.5 |
 | T16.2 | todo | P1 | 4 | 0% | |
 | T16.3 | todo | P1 | 2 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
@@ -26,6 +26,13 @@ Plan:
 2. `crates/kerf-slint` (row in `docs/architecture.md` §2.2): `ui/editor.slint` built with `slint-build`; a `SlintView` over `EmbeddedHost` with `resize`, `set_theme`, `render(&mut [u8])` and the caret rectangle; `impl Render` feeds it the `Frame`.
 3. Tests: render a known `Frame` into a buffer and compare pixels; caret rectangle after moves and edits; a resize changes the buffer length.
 4. `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`.
+
+Execution:
+
+- Dependency: `slint-bindings-core` git pin `9c1b353e114c83d5cb03cb61d504a166ed49efa1`; `slint` and `slint-build` at the `=1.18.1` it forces. Facts, sources and the licence terms go into `research.md` §7 "Slint dependency and licence".
+- `ui/editor.slint`: an `EditorComponent` window that draws the visible lines as one `Text` each, a selection fill per line and an optional caret. Column offsets are measured by Slint itself (hidden `Text` elements over the line prefix), so the caret and the selection follow the same shaping as the drawn text.
+- `src/lib.rs`: `Theme` (the `kerf-render` fields, kept here because T16.3 deletes `kerf-render`), `Rect` in logical points, `SlintView` with `new`, `resize`, `set_theme`, `draw(&mut [u8])` (not `render`, which `impl Render` already names for the frame), `caret()` and `impl Render`.
+- Tests (`tests/render.rs`, CPU only): background, text and selection pixels of a known frame; caret after moves, edits and a new line; resize changes the frame length; a short buffer is refused.
 
 #### T16.2. Native host on the Slint view
 
