@@ -66,16 +66,6 @@ walkdir = "2.5.0"
 # Fixture digests in `kerf-binaries` tests.
 sha2 = "0.11.1"
 hex = "0.4.3"
-# GPU API for the editor renderer (`kerf-render`, research.md §7): Metal,
-# D3D12 and Vulkan behind one API, and a surface from a host's native view.
-wgpu = "30.0.1"
-# Text on wgpu for `kerf-render`: draws `cosmic-text` layouts (shaping,
-# fallback, bidi) through a glyph atlas; re-exports the `cosmic-text` it uses,
-# so the two never drift apart.
-glyphon = "0.12.0"
-# Blocks on wgpu's async adapter and device requests: `kerf-ffi` creates the
-# device behind a synchronous C call, and `kerf-render`'s tests do the same.
-pollster = "1.0.1"
 # C header for `kerf-ffi`, generated from its Rust declarations in a test
 # (dev only) that fails when the committed `include/kerf.h` is stale. 0.29.3,
 # not the newer 0.29.4: extism (under `kerf-plugin`) pins `=0.29.3`. Default
@@ -102,8 +92,8 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 # The index the inspection runner (`kerf-inspect`) hands to plugins, and the
 # index the LSP end-to-end test merges into.
 kerf-semantic = { path = "crates/kerf-semantic" }
-# The GPU editor renderer `kerf-ffi` exposes to native hosts.
-kerf-render = { path = "crates/kerf-render" }
+# The Slint editor surface `kerf-ffi` exposes to native hosts.
+kerf-slint = { path = "crates/kerf-slint" }
 # Host-driven Slint embedding for `kerf-slint` (research.md §7): a Slint
 # platform with no event loop that renders into a buffer the host owns. A git
 # pin: the crate is `publish = false`.

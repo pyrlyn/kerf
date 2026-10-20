@@ -3,7 +3,7 @@
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
 //! The whole host path through the C functions only: open a file, type,
-//! delete, undo, redo, select and replace, render offscreen, place the caret, read pixels; and
+//! delete, undo, redo, select and replace, render on the CPU, place the caret, read pixels; and
 //! the inputs a broken host can send.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -14,9 +14,6 @@
 use std::ptr::{null, null_mut};
 
 use kerf_ffi::*;
-
-/// Set in CI, where a missing adapter is a broken runner, not a skip.
-const REQUIRE: &str = "KERF_REQUIRE_GPU";
 
 fn open(path: &std::path::Path) -> (KerfStatus, *mut KerfEditor) {
     let path = path.to_str().unwrap();
@@ -111,15 +108,17 @@ fn host_opens_edits_and_renders_through_the_c_functions() {
         draw_caret: 1,
     };
     let mut view = null_mut();
-    match unsafe { kerf_view_new_offscreen(160, 40, 2.0, &theme, &mut view) } {
-        KerfStatus::Ok => {}
-        KerfStatus::Gpu if std::env::var_os(REQUIRE).is_none() => {
-            eprintln!("no GPU adapter, render half skipped");
-            unsafe { kerf_editor_free(ed) };
-            return;
-        }
-        other => panic!("offscreen view: {other:?}"),
-    }
+    let mut len = 0;
+    assert_eq!(
+        unsafe { kerf_view_new(160, 40, 2.0, &theme, &mut view) },
+        KerfStatus::Ok
+    );
+    // No frame before the first render.
+    assert_eq!(
+        unsafe { kerf_view_read_rgba(view, null_mut(), 0, &mut len) },
+        KerfStatus::NullPointer
+    );
+    assert_eq!(len, 0);
     assert_eq!(unsafe { kerf_view_render(view, ed) }, KerfStatus::Ok);
     let mut caret = KerfRect {
         x: 0.0,
@@ -128,11 +127,10 @@ fn host_opens_edits_and_renders_through_the_c_functions() {
         height: 0.0,
     };
     assert_eq!(unsafe { kerf_view_caret(view, &mut caret) }, KerfStatus::Ok);
-    // Line 0 after "// é", at scale 2: one 34 px line, a 4 px caret.
-    assert_eq!((caret.y, caret.height, caret.width), (0.0, 34.0, 4.0));
+    // Line 0 after "// é", in logical points whatever the scale.
+    assert_eq!((caret.y, caret.height, caret.width), (0.0, 17.0, 2.0));
     assert!(caret.x > 0.0);
 
-    let mut len = 0;
     let mut short = [0u8; 4];
     let status = unsafe { kerf_view_read_rgba(view, short.as_mut_ptr(), short.len(), &mut len) };
     assert_eq!((status, len), (KerfStatus::TooLarge, 160 * 40 * 4));
@@ -143,7 +141,8 @@ fn host_opens_edits_and_renders_through_the_c_functions() {
     );
     let at = |x: usize, y: usize| &rgba[(y * 160 + x) * 4..][..4];
     assert_eq!(at(159, 39), [30, 30, 30, 255]);
-    let (cx, cy) = ((caret.x + 2.0) as usize, (caret.height / 2.0) as usize);
+    // The caret in physical pixels: scale 2, one pixel into its 4 px width.
+    let (cx, cy) = ((caret.x * 2.0 + 1.0) as usize, caret.height as usize);
     assert!(
         at(cx, cy)[0] > 200 && at(cx, cy)[1] < 60,
         "caret pixel {:?}",
@@ -250,7 +249,7 @@ fn broken_host_input_gets_a_status_not_a_crash() {
     };
     let mut view = null_mut();
     assert_eq!(
-        unsafe { kerf_view_new_offscreen(10, 10, 1.0, &theme, &mut view) },
+        unsafe { kerf_view_new(10, 10, 1.0, &theme, &mut view) },
         KerfStatus::InvalidUtf8
     );
     assert_eq!(
@@ -264,6 +263,35 @@ fn broken_host_input_gets_a_status_not_a_crash() {
     unsafe {
         kerf_view_free(null_mut());
         kerf_editor_free(null_mut());
+        kerf_editor_free(ed);
+    }
+}
+
+#[test]
+fn a_view_used_from_another_thread_gets_a_status() {
+    let mut ed = null_mut();
+    let mut view = null_mut();
+    assert_eq!(unsafe { kerf_editor_new(&mut ed) }, KerfStatus::Ok);
+    assert_eq!(
+        unsafe { kerf_view_new(20, 20, 1.0, null(), &mut view) },
+        KerfStatus::Ok
+    );
+    // A host that breaks the header's one-thread rule; the handles cross as
+    // integers because raw pointers are not `Send`.
+    let (v, e) = (view as usize, ed as usize);
+    let status = std::thread::spawn(move || unsafe {
+        kerf_view_render(v as *mut KerfView, e as *mut KerfEditor)
+    })
+    .join()
+    .unwrap();
+    assert_eq!(status, KerfStatus::WrongThread);
+    // Freed from the wrong thread, the view is leaked, not dropped there.
+    std::thread::spawn(move || unsafe { kerf_view_free(v as *mut KerfView) })
+        .join()
+        .unwrap();
+    assert_eq!(unsafe { kerf_view_render(view, ed) }, KerfStatus::Ok);
+    unsafe {
+        kerf_view_free(view);
         kerf_editor_free(ed);
     }
 }

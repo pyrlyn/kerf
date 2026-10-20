@@ -8,7 +8,6 @@
 | mise | system | Pins the Rust toolchain | https://github.com/jdx/mise |
 | ketch | mise (`mise.toml`, `github:pyrlyn/ketch`) | `kerf-binaries` installs language servers and debug adapters through its CLI; the crate's tests run it | https://github.com/pyrlyn/ketch |
 | Xcode 27 (Swift 6.4, SwiftPM, `swift-format`) | system (Mac App Store); CI: the `xcode-27` image, selected by pyrlyn/ci `setup-xcode` | Builds, lints and tests the macOS host in `macos/` | https://developer.apple.com/xcode/ |
-| Mesa lavapipe (`mesa-vulkan-drivers`) | apt, CI Linux runners only | Software Vulkan adapter for the `kerf-render` offscreen test | https://gitlab.freedesktop.org/mesa/mesa |
 | fontconfig headers (`libfontconfig1-dev`) | apt, CI Linux runners only | `kerf-slint`: Slint's text stack links fontconfig to find fonts on Linux | https://gitlab.freedesktop.org/fontconfig/fontconfig |
 
 ## Crates
@@ -36,9 +35,6 @@
 | `hex` | Cargo (workspace dev dep) | `kerf-binaries` tests: hex form of fixture digests | https://crates.io/crates/hex |
 | `tokio-util` | Cargo (workspace dep, `codec`) | `kerf-remote`: `LinesCodec` frames the UI <-> host wire with a maximum line length, synchronously on a `BytesMut` | https://crates.io/crates/tokio-util |
 | `jsonrpsee-types` | Cargo (workspace dep) | `kerf-remote`: JSON-RPC 2.0 request, response and error envelopes | https://crates.io/crates/jsonrpsee-types |
-| `wgpu` | Cargo (workspace dep) | `kerf-render`: one GPU API over Metal, D3D12 and Vulkan, and a surface from the host's native view | https://crates.io/crates/wgpu |
-| `glyphon` | Cargo (workspace dep) | `kerf-render`: draws `cosmic-text` layouts on wgpu through a glyph atlas; its re-exported `cosmic-text` shapes the text | https://crates.io/crates/glyphon |
-| `pollster` | Cargo (workspace dep) | `kerf-ffi`: blocks on wgpu's async adapter and device requests behind a synchronous C call; `kerf-render` tests: the same for the offscreen test | https://crates.io/crates/pollster |
 | `slint-bindings-core` | Cargo (workspace dep, git pin by `rev`) | `kerf-slint`: host-driven Slint embedding, a platform with no event loop that renders a component into a buffer the host owns; `publish = false`, so not on crates.io | https://github.com/pyrlyn/slint-bindings/tree/main/crates/slint-bindings-core |
 | `slint` | Cargo (workspace dep, `=1.18.1`, software renderer only) | `kerf-slint`: the editor component's runtime; the exact pin is the one `slint-bindings-core` forces | https://crates.io/crates/slint |
 | `slint-build` | Cargo (workspace build dep, `=1.18.1`) | `kerf-slint`: compiles `ui/editor.slint` to Rust at build time, in lockstep with `slint` | https://crates.io/crates/slint-build |

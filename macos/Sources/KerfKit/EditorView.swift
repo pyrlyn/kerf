@@ -5,14 +5,17 @@
 import AppKit
 import CKerf
 
-/// The code editor. Kerf draws the text on the GPU into this view's layer;
-/// AppKit supplies the input, the caret and the theme, so typing, IME, key
-/// bindings and the caret behave as in any Mac text view.
+/// The code editor. Kerf's Slint component draws the text on the CPU and
+/// this view shows the frame as its layer's contents; AppKit supplies the
+/// input, the caret and the theme, so typing, IME, key bindings and the
+/// caret behave as in any Mac text view.
 public final class EditorView: NSView, @preconcurrency NSTextInputClient {
   public let editor: Editor
   public private(set) var theme: EditorTheme
-  /// The last render's failure; a hidden window's skipped frame is none.
+  /// The last render's failure.
   public private(set) var renderError: KerfError?
+  /// The frame on screen, as Kerf last drew it.
+  public private(set) var frameImage: CGImage?
   private let themeFor: (_ dark: Bool) -> EditorTheme
   private let caret = NSTextInsertionIndicator()
   // Read by `deinit`, which is not main-actor isolated before macOS 15.4;
@@ -29,16 +32,12 @@ public final class EditorView: NSView, @preconcurrency NSTextInputClient {
     self.themeFor = themeFor
     theme = themeFor(false)
     super.init(frame: frame)
-    // wgpu puts its Metal layer into this view's layer.
     wantsLayer = true
     theme = themeFor(isDark)
     let size = pixelSize
     var out: OpaquePointer?
     try theme.withKerfTheme { theme in
-      try check(
-        kerf_view_attach_appkit(
-          Unmanaged.passUnretained(self).toOpaque(), size.width, size.height,
-          Float(scale), theme, &out))
+      try check(kerf_view_new(size.width, size.height, Float(scale), theme, &out))
     }
     view = try unwrap(out)
     caret.displayMode = .hidden
@@ -65,6 +64,7 @@ public final class EditorView: NSView, @preconcurrency NSTextInputClient {
     let status = kerf_view_render(view, editor.handle)
     renderError =
       status == KERF_STATUS_OK || status == KERF_STATUS_NOTHING ? nil : KerfError(status: status)
+    if status == KERF_STATUS_OK { present(view) }
     var rect = KerfRect()
     // As in any Mac text view, a selection shows no caret.
     let selected = (try? editor.selection()).map { $0.anchor != $0.cursor } ?? false
@@ -72,11 +72,38 @@ public final class EditorView: NSView, @preconcurrency NSTextInputClient {
       caret.displayMode = .hidden
       return
     }
-    // Kerf reports physical pixels from the top left; the view is flipped.
+    // Kerf reports points from the top left; the view is flipped.
     caret.frame = NSRect(
-      x: CGFloat(rect.x) / scale, y: CGFloat(rect.y) / scale,
-      width: CGFloat(rect.width) / scale, height: CGFloat(rect.height) / scale)
+      x: CGFloat(rect.x), y: CGFloat(rect.y), width: CGFloat(rect.width),
+      height: CGFloat(rect.height))
     caret.displayMode = window?.firstResponder === self ? .automatic : .hidden
+  }
+
+  /// Copies Kerf's frame out and puts it on the layer.
+  private func present(_ view: OpaquePointer) {
+    var len = 0
+    _ = kerf_view_read_rgba(view, nil, 0, &len)
+    var pixels = Data(count: len)
+    let status = pixels.withUnsafeMutableBytes {
+      kerf_view_read_rgba(view, $0.baseAddress?.assumingMemoryBound(to: UInt8.self), len, &len)
+    }
+    let size = pixelSize
+    guard status == KERF_STATUS_OK, len == Int(size.width) * Int(size.height) * 4,
+      let provider = CGDataProvider(data: pixels as CFData),
+      let image = CGImage(
+        width: Int(size.width), height: Int(size.height), bitsPerComponent: 8,
+        bitsPerPixel: 32, bytesPerRow: Int(size.width) * 4,
+        space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+        // Slint's software renderer writes premultiplied RGBA.
+        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+        provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+    else {
+      renderError = KerfError(status: status == KERF_STATUS_OK ? KERF_STATUS_RENDER : status)
+      return
+    }
+    frameImage = image
+    layer?.contentsScale = scale
+    layer?.contents = image
   }
 
   private var scale: CGFloat {

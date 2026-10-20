@@ -22,10 +22,8 @@ use std::path::Path;
 
 use kerf_core::{Editor, ReadError, TextBuffer};
 
-#[cfg(target_os = "macos")]
-pub use view::kerf_view_attach_appkit;
 pub use view::{
-    KerfRect, KerfTheme, KerfView, kerf_view_caret, kerf_view_free, kerf_view_new_offscreen,
+    KerfRect, KerfTheme, KerfView, kerf_view_caret, kerf_view_free, kerf_view_new,
     kerf_view_read_rgba, kerf_view_render, kerf_view_resize, kerf_view_set_theme,
 };
 
@@ -66,14 +64,17 @@ pub enum KerfStatus {
     Io = 4,
     /// The command had nothing to do (undo with no history, left at the start).
     Nothing = 5,
-    /// No GPU adapter or device, or a draw failed.
-    Gpu = 6,
+    /// The view could not be drawn: a Slint platform error.
+    Render = 6,
     /// Kerf panicked; the handle may be in a bad state and should be freed.
     Panic = 7,
     /// Unknown command number, or a call this view kind does not support.
     Unsupported = 8,
     /// An offset is past the end of the text or inside a UTF-8 character.
     OutOfRange = 9,
+    /// A view call came from a thread other than the one that made the view;
+    /// Slint is single-threaded.
+    WrongThread = 10,
 }
 
 /// An editor: one buffer and its cursor. Opaque to the host.

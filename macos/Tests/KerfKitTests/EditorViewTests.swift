@@ -28,8 +28,8 @@ final class TempDir {
 @MainActor
 @Suite struct EditorViewTests {
   /// The whole host path: open a file, type through NSTextInputClient,
-  /// key bindings, the Edit menu's undo and redo, and a GPU frame on the
-  /// view's own Metal layer with the system caret placed on it.
+  /// key bindings, the Edit menu's undo and redo, and Kerf's frame on the
+  /// view's layer with the system caret placed on it.
   @Test func opensTypesUndoesAndRedoesThroughTheView() throws {
     let dir = try TempDir()
     let file = try dir.write("main.rs", "fn main() {}\n")
@@ -58,6 +58,16 @@ final class TempDir {
     #expect(view.caretFrame.minY == 0)
     #expect(view.caretFrame.minX > 0)
     #expect(view.caretFrame.height == theme.lineHeight)
+
+    // The frame fills the view at the window's scale, on the theme's background.
+    let image = try #require(view.frameImage)
+    let scale = window.backingScaleFactor
+    #expect(image.width == Int(320 * scale) && image.height == Int(120 * scale))
+    #expect(view.layer?.contents as! CGImage? === image)
+    let pixels = try #require(image.dataProvider?.data as Data?)
+    let last = (image.height * image.bytesPerRow) - 4
+    let bg = theme.background
+    #expect(Array(pixels[last..<last + 4]) == [bg.r, bg.g, bg.b, bg.a])
   }
 
   /// Shift-arrows, AppKit's UTF-16 ranges and replacing a selection, with

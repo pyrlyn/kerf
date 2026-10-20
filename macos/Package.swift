@@ -31,9 +31,11 @@ let package = Package(
       dependencies: ["CKerf"],
       linkerSettings: [
         .unsafeFlags([rustStaticLib]),
-        // What wgpu's Metal backend calls into.
-        .linkedFramework("Metal"),
-        .linkedFramework("QuartzCore"),
+        // What Slint's text and image stack (fontique) calls into.
+        .linkedFramework("AppKit"),
+        .linkedFramework("CoreFoundation"),
+        .linkedFramework("CoreGraphics"),
+        .linkedFramework("CoreText"),
       ]
     ),
     .executableTarget(name: "Kerf", dependencies: ["KerfKit"]),

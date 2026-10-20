@@ -1,6 +1,6 @@
 [package]
 name = "kerf-ffi"
-description = "Kerf's C ABI for native hosts: an editor over kerf-core and a view drawn by kerf-render, behind checked pointers and caught panics"
+description = "Kerf's C ABI for native hosts: an editor over kerf-core and a view drawn by kerf-slint, behind checked pointers and caught panics"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,9 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [dependencies]
 # Workspace versions live in the root `[workspace.dependencies]`.
 kerf-core = { workspace = true }
-kerf-render = { workspace = true }
-wgpu = { workspace = true }
-pollster = { workspace = true }
+kerf-slint = { workspace = true }
 
 [dev-dependencies]
 cbindgen = { workspace = true }
