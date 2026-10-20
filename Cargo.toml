@@ -93,8 +93,9 @@ kerf-core = { path = "crates/kerf-core" }
 # The extism plugin engine shared with cox and scull (worker thread, lanes,
 # deadlines, memory cap, package layout). A git pin, not a registry version:
 # it is not on crates.io, where the name `wasm_plugin_host` already belongs to
-# an unrelated crate.
-wasm-plugin-host = { git = "https://github.com/pyrlyn/crates", rev = "ca1be0671d65fcbf5acb3bac6b30d8d53c434877" }
+# an unrelated crate. Its `pulley` feature (T15) runs plugins on wasmtime's
+# interpreter for iOS and Android.
+wasm-plugin-host = { git = "https://github.com/pyrlyn/crates", rev = "8ebbef6038ce32cdc22ef61803c4e567a4ea7289" }
 # cox's plugin contract: `PluginManifest` and the ABI payloads (`InitIn`,
 # `InitOut`). Kerf takes the contract as is; not on crates.io, so a git pin.
 cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac85bf24ce1114d5082e59d172e" }

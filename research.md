@@ -126,7 +126,7 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 - It runs one worker thread per plugin with two bounded lanes: control 16 and events 256. A full lane answers `Busy`. A watchdog cancels a call at its deadline (`src/host.rs:25-27`, `:307-329`).
 - WASI is off, extism HTTP is compiled out, and memory is capped (16 MiB default, 64 MiB max). There is no fuel metering; deadlines use timeouts (`src/host.rs:167-172`).
 - It has no manifest or permission model; those live in cox.
-- Wasmtime uses Cranelift, a JIT, so it cannot run on iOS (section "Mobile" below).
+- Wasmtime uses Cranelift, a JIT, so its native code cannot run on iOS (section "Mobile" below); §8 runs it on wasmtime's Pulley interpreter instead.
 - cox does not depend on it yet. cox keeps a near-identical host in `apps/cox/crates/cox-plugin/src/host.rs:124`.
 - PR #42, "package layout for discovery, staging and removal", is open, mergeable and +1099/−5 (https://github.com/listepo/crates-packages/pull/42, 2026-10-09). It ports cox's on-disk layout as a generic module:
   - user plugins live at `<home>/plugins/<id>/versions/<digest12>/`, with `current` and `previous`;
@@ -206,7 +206,7 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 - **Plugin ABI.** Core modules with JSON over extism (cox, `wasm-plugin-host`) or WIT components (Zed, Lapce via WASI)? Taking cox "as is" means core modules; versioned WIT would be a new contract. Settled by the creator on 2026-10-09: cox's ABI as is.
 - **Licence.** Settled by the creator on 2026-10-09: the same terms as cox (GPL-3.0-or-later or royalty-free, plus commercial), so host code may be taken from cox.
 - **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window: settled in T12 — native hosts over a C ABI, with Kerf's own GPU editor renderer (§7).
-- **Mobile.** Wasmtime needs a JIT. iOS and Android need an interpreter backend behind the same host API.
+- **Mobile.** Wasmtime needs a JIT. iOS and Android need an interpreter backend behind the same host API. Settled in T15: wasmtime's Pulley interpreter (§8).
 
 ## 6. Remote development (T13)
 
@@ -292,3 +292,35 @@ The creator's rule (2026-10-19): the code editor looks native — on macOS like 
 ### Licence
 
 wgpu and cosmic-text are `MIT OR Apache-2.0`, glyphon `MIT OR Apache-2.0 OR Zlib` (crates.io metadata of the versions above), which fits all of Kerf's licences. With Slint gone, the Slint Royalty-free licence question is gone too.
+
+## 8. Mobile plugin backend (T15)
+
+Checked on 2026-10-20. Kerf's plugins are extism modules (cox's ABI, §4) loaded by `wasm-plugin-host`. On iOS an app cannot map writable and executable memory: the entitlement that allows `MAP_JIT` lists macOS only (https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.cs.allow-jit, platforms: macOS 10.7+). So wasmtime's Cranelift output cannot run there, and the backend has to interpret.
+
+### Candidates
+
+| Candidate | State | Fit for Kerf's extism plugins |
+| --- | --- | --- |
+| wasmtime Pulley | Ships inside wasmtime 49 (feature `pulley`, `Config::target("pulley64")`); wasmtime calls it "a portable implementation of executing WebAssembly code" that runs wherever wasmtime builds, and uses it when Cranelift has no native backend (https://docs.wasmtime.dev/stability-platform-support.html, 2026-10-20) | Same engine extism already runs: extism 1.41.0 `PluginBuilder::with_wasmtime_config` keeps the caller's target and overrides only epoch interruption, debug info, coredump, profiler and the tail-call, function-references, GC and exception proposals (extism 1.41.0 `src/plugin.rs:58-70`, `src/plugin_builder.rs:195-209`). No new dependency, no second host. |
+| wasmi | v2.0.0, 2026-09-01 (https://github.com/wasmi-labs/wasmi/releases) | Pure-Rust interpreter, but extism has no wasmi host: extism 1.41.0 depends on wasmtime (`Cargo.toml`). Kerf would re-implement extism's kernel linking, memory and host-function ABI on wasmi. `plugwright-wasmi` (pyrlyn/crates `rust/plugwright/crates/plugwright-wasmi`, 8056429) speaks plugwright's own `pw_*` ABI, not extism's. |
+| WAMR | WAMR-2.4.5, 2026-06-29 (https://github.com/bytecodealliance/wasm-micro-runtime/releases) | C runtime with an interpreter; the same extism re-hosting as wasmi, plus a C build for each mobile target. |
+| wasm3 | README: "Wasm3 will enter a minimal maintenance phase"; no releases listed (https://github.com/wasm3/wasm3, 2026-10-20) | Unmaintained by Kerf's rule; excluded. |
+
+### Choice
+
+Pulley, through feature `pulley` of the shared host (pyrlyn/crates T20.6, pyrlyn/crates#107; the same feature on its successor `plugwright-extism`). With it on, `PluginHost::load` passes extism a `wasmtime::Config` whose target is `pulley64` (`pulley32` on 32-bit targets). The host API is unchanged. `kerf-plugin` forwards it as feature `interpreter`, and iOS and Android targets turn it on through a target-specific dependency (`crates/kerf-plugin/Cargo.toml`).
+
+Evidence, on this Mac (aarch64-apple-darwin):
+
+- Kerf's T6 tests (`crates/kerf-plugin/tests/plugins.rs`, unchanged) pass with `--features interpreter`; CI runs them on every target.
+- The shared host's whole suite passes with `pulley` on, including the deadline (epoch interruption), the memory cap and a module that uses exception handling; a test asserts that the engine built from the config `is_pulley()`.
+- `cargo check -p kerf-plugin` succeeds for `aarch64-apple-ios` and for `aarch64-linux-android` (NDK 30.0.15729638), with `pulley` on through the target dependency.
+- A scratch host on extism 1.41.0 + wasmtime 49.0.3: a 50-million-iteration loop took 14.7 ms native and 252.8 ms on Pulley (release build), about 17× slower.
+
+### Limits
+
+- Speed: interpreted code is roughly an order of magnitude slower than Cranelift's (measured above); wasmtime states Pulley "will never be as fast as native Cranelift backends" (platform-support page above). Kerf plugins answer short calls, and their deadlines and the call budget apply as on desktop.
+- Load time: Cranelift still compiles each module, to Pulley bytecode, on the device at every load, because the host disables extism's compilation cache. Precompiling (`Engine::precompile_module`) is not wired; it would need a signed cache, since loading precompiled code is `unsafe`.
+- Both mobile builds take the interpreter. Whether Android apps may map executable memory for a JIT was not checked against a primary source (**unverified**); the interpreter is the safe default there and the target line in `kerf-plugin/Cargo.toml` is the one place to change.
+- Not yet run on a device or simulator: Kerf has no iOS or Android host. Only `cargo check` for both targets and the desktop tests above.
+- wasmtime lists iOS and Android as supported but "less well tested" (platform-support page above).
