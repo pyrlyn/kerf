@@ -14,7 +14,8 @@ public struct KerfError: LocalizedError, Equatable {
     case KERF_STATUS_INVALID_UTF8: "The file is not UTF-8 text."
     case KERF_STATUS_TOO_LARGE: "The file is too large."
     case KERF_STATUS_IO: "The file could not be read."
-    case KERF_STATUS_GPU: "No GPU is available to draw the editor."
+    case KERF_STATUS_RENDER: "The editor could not be drawn."
+    case KERF_STATUS_WRONG_THREAD: "Kerf was called off the main thread."
     default: "Kerf failed (status \(status.rawValue))."
     }
   }

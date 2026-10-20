@@ -7,7 +7,6 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
 | T16.1 | in progress | P1 | 4 | 80% | Claude / opus-5.5 |
-| T16.2 | todo | P1 | 4 | 0% | |
 | T16.3 | todo | P1 | 2 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
 
@@ -33,10 +32,6 @@ Execution:
 - `ui/editor.slint`: an `EditorComponent` window that draws the visible lines as one `Text` each, a selection fill per line and an optional caret. Column offsets are measured by Slint itself (hidden `Text` elements over the line prefix), so the caret and the selection follow the same shaping as the drawn text.
 - `src/lib.rs`: `Theme` (the `kerf-render` fields, kept here because T16.3 deletes `kerf-render`), `Rect` in logical points, `SlintView` with `new`, `resize`, `set_theme`, `draw(&mut [u8])` (not `render`, which `impl Render` already names for the frame), `caret()` and `impl Render`.
 - Tests (`tests/render.rs`, CPU only): background, text and selection pixels of a known frame; caret after moves, edits and a new line; resize changes the frame length; a short buffer is refused.
-
-#### T16.2. Native host on the Slint view
-
-`kerf-ffi`'s view handle draws through `kerf-slint` into a buffer the host owns, instead of a `wgpu` surface over the host's `NSView`. The macOS `EditorView` presents that buffer (as slint-bindings' `SlintNSView` does) on each display-link tick and keeps `NSTextInputClient`, `NSTextInsertionIndicator` and the Xcode theme. Done when the Rust end-to-end test over the C ABI and the headless Swift test open, type, select, undo and redo, and the header has no drift.
 
 #### T16.3. Remove the GPU renderer
 
