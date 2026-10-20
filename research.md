@@ -239,6 +239,12 @@ Crates for the wire (registry API, checked 2026-10-19):
 
 Checked on 2026-10-19. Repository facts are at slint-bindings `4d61045` (which vendors slint_dart under `flutter/`); crate facts come from the crates.io API on that date.
 
+### Direction (the creator, 2026-10-20): Slint for the editor
+
+The creator changed the editor surface on 2026-10-20: the code editor is a **Slint** component embedded in the native host through **slint-bindings** (`EmbeddedHost<C: ComponentHandle>` in `slint-bindings-core`, `crates/slint-bindings-core/src/host.rs` at slint-bindings `9c1b353`), not Kerf's own GPU renderer. The native window, menus, input and the "Look" rules below stay. The GPU renderer (`kerf-render`) is removed once the Slint surface replaces it (plan.md T16). The "Editor renderer" and "Licence" subsections below record the 2026-10-19 choice that this replaces; the dependency and licence facts for Slint are checked in T16.1.
+
+slint-bindings renders on the CPU into a host-owned RGBA buffer and calls itself an "M1 spike" (`README.md` at `9c1b353`); its GPU path is its own milestone M3 (`plan.md` at `9c1b353`).
+
 ### Direction (the creator, 2026-10-19)
 
 Kerf uses **native controls** and **its own GPU renderer for the code editor**:

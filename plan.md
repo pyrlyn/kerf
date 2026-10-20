@@ -6,8 +6,34 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
+| T16.1 | todo | P1 | 4 | 0% | |
+| T16.2 | todo | P1 | 4 | 0% | |
+| T16.3 | todo | P1 | 2 | 0% | |
 | T15 | todo | P3 | 5 | 0% | |
 
+
+### T16. Slint editor surface
+
+The creator's direction of 2026-10-20 (`research.md` §7): the editor surface is a Slint component, embedded in the native host through slint-bindings, instead of Kerf's own GPU renderer. The native window, menus, input (`NSTextInputClient`), the system caret and the Xcode look stay as T12 built them. The subtasks together are done when the macOS app opens a file, shows it in the Slint-drawn editor view, takes typing, selection, undo and redo through `kerf-core`, headless tests cover that path, and `kerf-render` with its GPU dependencies is gone.
+
+#### T16.1. Slint editor component
+
+A crate that implements `kerf_core::Render` with a Slint component: the buffer text, the selection, a surface size and scale factor and the host's `Theme` (the same fields `kerf-render` takes), rendered by `slint-bindings-core`'s `EmbeddedHost` into an RGBA buffer the caller owns. It reports the caret rectangle so the host keeps the system caret. Done when tests render a frame on the CPU and check the background, text and selection pixels and the caret rectangle.
+
+Plan:
+
+1. Check the dependency and the licence and record both in `research.md` §7 with sources: `slint-bindings-core` from `pyrlyn/slint-bindings` as a git dependency pinned to a commit (it is `publish = false`), the exact `slint` pin it requires, and the Slint licence terms for a desktop app under Kerf's licences.
+2. `crates/kerf-slint` (row in `docs/architecture.md` §2.2): `ui/editor.slint` built with `slint-build`; a `SlintView` over `EmbeddedHost` with `resize`, `set_theme`, `render(&mut [u8])` and the caret rectangle; `impl Render` feeds it the `Frame`.
+3. Tests: render a known `Frame` into a buffer and compare pixels; caret rectangle after moves and edits; a resize changes the buffer length.
+4. `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`.
+
+#### T16.2. Native host on the Slint view
+
+`kerf-ffi`'s view handle draws through `kerf-slint` into a buffer the host owns, instead of a `wgpu` surface over the host's `NSView`. The macOS `EditorView` presents that buffer (as slint-bindings' `SlintNSView` does) on each display-link tick and keeps `NSTextInputClient`, `NSTextInsertionIndicator` and the Xcode theme. Done when the Rust end-to-end test over the C ABI and the headless Swift test open, type, select, undo and redo, and the header has no drift.
+
+#### T16.3. Remove the GPU renderer
+
+Delete `crates/kerf-render` and the `wgpu`, `glyphon` and `pollster` dependencies once nothing uses them, with their `toolchain.md` rows, the lavapipe CI step and the `docs/architecture.md` row. Done when the workspace builds and tests pass without them.
 
 ### T15. Mobile plugin backend
 

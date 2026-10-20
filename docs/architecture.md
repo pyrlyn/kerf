@@ -36,7 +36,8 @@ Still open in [research.md §5](../research.md#5-open-questions): plugin UI
 (cox `Widget` tree or weft) and the mobile interpreter backend. Neither is a
 contract T2–T4 need, so this document does not settle them. The window is
 settled in [research.md §7](../research.md#7-ui-shell-t12): native hosts over
-a C ABI, with Kerf's own GPU renderer for the editor surface.
+a C ABI, with a Slint editor surface embedded through slint-bindings (the
+creator, 2026-10-20; replaces Kerf's own GPU renderer, plan.md T16).
 
 ## 2. Core boundary and crate map
 
