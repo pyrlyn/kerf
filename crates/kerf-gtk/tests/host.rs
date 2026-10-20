@@ -3,9 +3,9 @@
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
 //! The Linux host's path through a real GTK display (Xvfb in CI): open a
-//! file into the editor widget, type through the input method and keys,
-//! select, undo, redo, and read the frame and the caret back. Without a
-//! display it skips, unless `KERF_REQUIRE_DISPLAY` is set, which CI does.
+//! file into a window, type through the input method and keys, select, undo,
+//! redo, and read the frame and the caret back. Without a display it skips,
+//! unless `KERF_REQUIRE_DISPLAY` is set, which CI does.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -22,7 +22,7 @@ fn main() {
         eprintln!("skipped: no display ({error})");
         return;
     }
-    let cases: [(&str, fn()); 5] = [
+    let cases: [(&str, fn()); 6] = [
         ("gnome_look", linux::gnome_look),
         ("open_type_undo_redo", linux::open_type_undo_redo),
         ("keys_select_and_edit", linux::keys_select_and_edit),
@@ -31,6 +31,7 @@ fn main() {
             linux::input_method_commits_text,
         ),
         ("frame_and_caret", linux::frame_and_caret),
+        ("window_actions", linux::window_actions),
     ];
     for (name, case) in cases {
         case();
@@ -43,9 +44,9 @@ mod linux {
     use std::io::Write;
     use std::time::{Duration, Instant};
 
-    use gtk::{gdk, glib, prelude::*};
+    use gtk::{gdk, gio, glib, prelude::*};
     use kerf_gtk::gnome::{self, Gnome};
-    use kerf_gtk::{Editor, EditorView};
+    use kerf_gtk::{Editor, EditorView, app};
 
     fn file(text: &str) -> tempfile::NamedTempFile {
         let mut file = tempfile::Builder::new().suffix(".rs").tempfile().unwrap();
@@ -179,6 +180,30 @@ mod linux {
         assert!(after.height() > 0.0);
         view.insert("\n");
         assert!(view.caret().unwrap().y() > after.y());
+        window.destroy();
+    }
+
+    pub fn window_actions() {
+        let app = gtk::Application::builder()
+            .application_id("io.github.pyrlyn.Kerf.Test")
+            .flags(gio::ApplicationFlags::NON_UNIQUE)
+            .build();
+        app.register(gio::Cancellable::NONE).unwrap();
+        app::install(&app);
+        let file = file("let x = 1;\n");
+        let window = app::window(&app, Editor::open(file.path()).unwrap(), "x.rs").unwrap();
+        window.present();
+        let view = app::view_of(&window).unwrap();
+        wait(|| view.frame().is_some_and(|f| f.width() > 1));
+        assert_eq!(window.title().as_deref(), Some("x.rs"));
+        assert_eq!(app.accels_for_action("win.undo"), ["<Control>z"]);
+        view.insert("// ");
+        WidgetExt::activate_action(&window, "win.undo", None).unwrap();
+        assert_eq!(text(&view), "let x = 1;\n");
+        WidgetExt::activate_action(&window, "win.redo", None).unwrap();
+        assert_eq!(text(&view), "// let x = 1;\n");
+        WidgetExt::activate_action(&window, "win.select-all", None).unwrap();
+        assert_eq!(view.editor().unwrap().selection().unwrap(), (0, 14));
         window.destroy();
     }
 }
