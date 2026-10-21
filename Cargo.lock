@@ -6557,7 +6557,7 @@ dependencies = [
 [[package]]
 name = "wasm-plugin-host"
 version = "0.1.0"
-source = "git+https://github.com/pyrlyn/crates?rev=ca1be0671d65fcbf5acb3bac6b30d8d53c434877#ca1be0671d65fcbf5acb3bac6b30d8d53c434877"
+source = "git+https://github.com/pyrlyn/crates?rev=8ebbef6038ce32cdc22ef61803c4e567a4ea7289#8ebbef6038ce32cdc22ef61803c4e567a4ea7289"
 dependencies = [
  "extism",
  "serde",
