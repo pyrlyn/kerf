@@ -379,3 +379,9 @@ Plan:
 5. Verify with the existing suite (a removal has no behaviour of its own to test: it can only break what it was supposed to leave alone): `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`, `cargo build --locked -p kerf-ffi`. `wgpu 30` and `pollster 0.4` stay in the macOS and Windows tree through `slint-bindings-core`: no direct dependency remains, the lockfile still has them.
 
 Result: `crates/kerf-render` and the direct `wgpu`, `glyphon` and `pollster` dependencies are gone, with their `toolchain.md` rows, the lavapipe CI step and the architecture row; the workspace builds and its tests, clippy and fmt pass without them.
+
+### T17.1. GTK host crate: the editor over the C ABI and GNOME's look
+
+`crates/kerf-gtk` (Linux only; on other targets only the plain `look` rules build): `Editor`, a safe wrapper over the `kerf_editor_*` calls; `look`, GNOME Text Editor's Adwaita and Adwaita-dark colours, line height and GTK's caret width and blink rules as plain values; `gnome`, GNOME's monospace font measured by Pango and the theme's darkness from the widget's text colour. CI installs `libgtk-4-dev` and runs Xvfb on Linux with `KERF_REQUIRE_DISPLAY`. Done when the editor tests (open, type, select, undo, redo, refusals), the `look` unit tests and a display test of the GNOME look pass in CI.
+
+Result: merged in #36 (squash `0331f50`). On macOS only `look` builds; the editor and display tests run in CI on `ubuntu-latest` under Xvfb.
