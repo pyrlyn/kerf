@@ -33,8 +33,11 @@ Already fixed by the creator ([AGENTS.md](../AGENTS.md),
   writes is untrusted input. Every queue and buffer it can grow has a hard cap.
 
 Still open in [research.md §5](../research.md#5-open-questions): plugin UI
-(cox `Widget` tree or weft) and the mobile interpreter backend. Neither is a
-contract T2–T4 need, so this document does not settle them. The window is
+(cox `Widget` tree or weft). It is not a contract T2–T4 need, so this
+document does not settle it. The mobile plugin backend is settled in
+[research.md §8](../research.md#8-mobile-plugin-backend-t15): wasmtime's
+Pulley interpreter behind the same host API (`kerf-plugin` feature
+`interpreter`, on by default for iOS and Android). The window is
 settled in [research.md §7](../research.md#7-ui-shell-t12): native hosts over
 a C ABI, with a Slint editor surface embedded through slint-bindings (the
 creator, 2026-10-20; replaces Kerf's own GPU renderer, plan.md T16).

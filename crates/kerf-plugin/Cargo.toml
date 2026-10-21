@@ -16,6 +16,17 @@ thiserror = { workspace = true }
 toml = { workspace = true }
 wasm-plugin-host = { workspace = true }
 
+# iOS gives apps no executable memory at run time, so wasmtime cannot JIT
+# there; Android takes the same backend so both mobile builds behave alike.
+[target.'cfg(any(target_os = "ios", target_os = "android"))'.dependencies]
+wasm-plugin-host = { workspace = true, features = ["pulley"] }
+
+[features]
+# Plugins on wasmtime's Pulley interpreter instead of native code (T15).
+# Mobile targets get it on their own; desktop CI turns it on to run the
+# plugin tests against the interpreter.
+interpreter = ["wasm-plugin-host/pulley"]
+
 [dev-dependencies]
 tempfile = { workspace = true }
 
