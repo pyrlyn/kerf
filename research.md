@@ -342,3 +342,37 @@ Evidence, on this Mac (aarch64-apple-darwin):
 - Both mobile builds take the interpreter. Whether Android apps may map executable memory for a JIT was not checked against a primary source (**unverified**); the interpreter is the safe default there and the target line in `kerf-plugin/Cargo.toml` is the one place to change.
 - Not yet run on a device or simulator: Kerf has no iOS or Android host. Only `cargo check` for both targets and the desktop tests above.
 - wasmtime lists iOS and Android as supported but "less well tested" (platform-support page above).
+### Linux host (T17)
+
+Checked on 2026-10-20. The creator's choices that day: the host is Rust on gtk4-rs calling `kerf-ffi`'s C functions (not C over `kerf.h`), and the look is GNOME Text Editor's on plain GTK 4, without libadwaita.
+
+**Bindings and GTK version.**
+
+- `gtk4` 0.11.5 (2026-09-20, MIT, rust-version 1.92; crates.io API) from [gtk-rs/gtk4-rs](https://github.com/gtk-rs/gtk4-rs). Its `gtk4-sys` 0.11.5 asks pkg-config for GTK ≥ 4.0 and raises the floor per feature (`v4_2` … `v4_24`, `[package.metadata.system-deps]` in the crate's `Cargo.toml`).
+- `ubuntu-latest` is Ubuntu 24.04 ([actions/runner-images README](https://github.com/actions/runner-images), main on 2026-10-20), whose `gtk4` source package is 4.14.5 in noble-updates (Launchpad API, `getPublishedSources`). Kerf turns on `v4_14` and nothing newer, so the host builds on the CI runner and on the Ubuntu 24.04 Lima VM.
+- The rejected alternative, C with Meson over `kerf.h`, needs manual memory management and a second build tool; gtk4-rs keeps the host in the Cargo workspace and still crosses only the C ABI.
+
+**Showing the frame.** `gdk_memory_texture_new(width, height, format, bytes, stride)` makes a texture from a blob of pixels ([GdkMemoryTexture.new](https://docs.gtk.org/gdk4/ctor.MemoryTexture.new.html), GTK docs 4.24.1), and `GDK_MEMORY_R8G8B8A8_PREMULTIPLIED` is 4 bytes, red, green, blue, alpha, premultiplied ([GdkMemoryFormat](https://docs.gtk.org/gdk4/enum.MemoryFormat.html)), exactly what `kerf_view_read_rgba` writes. The widget appends it in its `snapshot` at its logical size, so at scale 2 the 2× frame maps pixel for pixel. A test reads the texture back with `gdk_texture_download`, whose data is `CAIRO_FORMAT_ARGB32` ([Texture.download](https://docs.gtk.org/gdk4/method.Texture.download.html)): premultiplied BGRA bytes on little-endian machines.
+
+**Input.** A `GtkIMMulticontext` switches between input methods and is what GtkText and GtkTextView use ([IMMulticontext](https://docs.gtk.org/gtk4/class.IMMulticontext.html)). `gtk_event_controller_key_set_im_context` lets the key controller feed it ([EventControllerKey.set_im_context](https://docs.gtk.org/gtk4/method.EventControllerKey.set_im_context.html)); `::commit` brings "a complete input sequence", a single character or the end of a composition ([IMContext::commit](https://docs.gtk.org/gtk4/signal.IMContext.commit.html)); `set_cursor_location` tells the input method where the caret is, relative to the widget ([IMContext.set_cursor_location](https://docs.gtk.org/gtk4/method.IMContext.set_cursor_location.html)). With `set_use_preedit(FALSE)` the input method shows its feedback itself, for example in a window of its own ([IMContext.set_use_preedit](https://docs.gtk.org/gtk4/method.IMContext.set_use_preedit.html)): the host commits text as typed, as the macOS host does, until the core has a marked range.
+
+**The caret.** GTK 4 has no caret widget, and `gtk_snapshot_render_insertion_cursor` is deprecated since 4.10 ([Snapshot.render_insertion_cursor](https://docs.gtk.org/gtk4/method.Snapshot.render_insertion_cursor.html)). The host therefore draws the caret over the frame with GTK's own rules, read from `GtkSettings` at run time:
+
+- width `height × gtk-cursor-aspect-ratio + 1` (`stem_width` in [`gtk/gtkrenderlayout.c`](https://gitlab.gnome.org/GNOME/gtk/-/blob/4.14.2/gtk/gtkrenderlayout.c), 4.14.2); the ratio defaults to 0.04 ([gtk-cursor-aspect-ratio](https://docs.gtk.org/gtk4/property.Settings.gtk-cursor-aspect-ratio.html));
+- GtkTextView's blink: the `gtk-cursor-blink-time` cycle (default 1200 ms, [gtk-cursor-blink-time](https://docs.gtk.org/gtk4/property.Settings.gtk-cursor-blink-time.html)) split evenly into visible, fading out, hidden, fading in; after an edit the first fade waits half a cycle; it stops after `gtk-cursor-blink-timeout` seconds (default 10, "reset after each user interaction", [gtk-cursor-blink-timeout](https://docs.gtk.org/gtk4/property.Settings.gtk-cursor-blink-timeout.html)) (`blink_alpha`, `add_blink_timeout`, `blink_cb` in [`gtk/gtktextview.c`](https://gitlab.gnome.org/GNOME/gtk/-/blob/4.14.2/gtk/gtktextview.c), 4.14.2);
+- no caret while text is selected: GtkTextLayout adds no cursor when the buffer has a selection (`gtk/gtktextlayout.c` line 1880 at 4.14.2).
+
+**The look: GNOME Text Editor.**
+
+| | Value | Source |
+| --- | --- | --- |
+| Font | GNOME's `org.gnome.desktop.interface monospace-font-name`, default `'Adwaita Mono 11'` (it was `'Source Code Pro 10'` in 46.0); GNOME Text Editor uses it while its `use-system-font` is on (default true), else its `custom-font`, default `'Monospace 11'` | [gsettings-desktop-schemas](https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas/-/blob/main/schemas/org.gnome.desktop.interface.gschema.xml.in) (main and 46.0); [gnome-text-editor 49.0 schema](https://gitlab.gnome.org/GNOME/gnome-text-editor/-/blob/49.0/data/org.gnome.TextEditor.gschema.xml) |
+| Line height | `line-height` default 1.2, a factor on the font's own line (the host uses Pango's ascent plus descent) | gnome-text-editor 49.0 schema |
+| Colours | style scheme default `'Adwaita'`. GtkSourceView 5.18.0 `Adwaita.xml`: text `dark_3` #504E55 on `light_1` #FFFFFF, cursor `dark_1` #77767B; `Adwaita-dark.xml`: text `light_5` #C0BFBC on `libadwaita-dark` #1D1D20, cursor `light_5` | gnome-text-editor 49.0 schema; [GtkSourceView styles](https://gitlab.gnome.org/GNOME/gtksourceview/-/tree/5.18.0/data/styles) |
+| Selection | the schemes set none, so GTK's theme decides: `$selected_text_bg_color` is #3584E4 at 0.3 alpha (light) and `darken(#3584e4, 20%)` = #15539E at 0.8 alpha (dark) | [`gtk/theme/Default/_colors.scss`](https://gitlab.gnome.org/GNOME/gtk/-/blob/4.14.2/gtk/theme/Default/_colors.scss), 4.14.2 (darken computed in HSL) |
+| Light or dark | GTK 4.14 has no public "is the theme dark" call; `gtk-interface-color-scheme` exists only from 4.20 ([Settings:gtk-interface-color-scheme](https://docs.gtk.org/gtk4/property.Settings.gtk-interface-color-scheme.html)). The host reads the widget's foreground colour (`gtk_widget_get_color`, 4.10+, [Widget.get_color](https://docs.gtk.org/gtk4/method.Widget.get_color.html)) and takes light text for a dark theme | — |
+| Window | header bar with Open and a main menu; GNOME's shortcuts (Ctrl+O, Ctrl+Z, Shift+Ctrl+Z, Ctrl+A, Ctrl+W, Ctrl+Q) | [GNOME HIG, keyboard](https://developer.gnome.org/hig/reference/keyboard.html) (**unverified**: not re-read on this date) |
+
+Pango sizes are points; GTK lays out at 96 dpi, so the host converts with ×96/72 (**unverified** for displays that set `gtk-xft-dpi`).
+
+**Tests on a display.** `gtk::init` calls `gtk_init_check` and returns an error instead of exiting when there is no windowing system ([docs.rs gtk4 0.11.5 `init`](https://docs.rs/gtk4/0.11.5/gtk4/fn.init.html)). CI runs Xvfb on the Linux runner; locally the test runs in a Lima VM from `template:ubuntu-24.04`, the same GTK 4.14 as CI.

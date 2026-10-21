@@ -94,6 +94,12 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 kerf-semantic = { path = "crates/kerf-semantic" }
 # The Slint editor surface `kerf-ffi` exposes to native hosts.
 kerf-slint = { path = "crates/kerf-slint" }
+# The C ABI the Linux host (`kerf-gtk`) calls.
+kerf-ffi = { path = "crates/kerf-ffi" }
+# GTK 4 for the Linux host (`kerf-gtk`, research.md §7): the toolkit GNOME's
+# own apps use, through gtk-rs's maintained bindings. `v4_14`: Ubuntu 24.04's
+# GTK, the oldest the CI runner and the Lima test VM have.
+gtk = { package = "gtk4", version = "0.11.5", features = ["v4_14"] }
 # Host-driven Slint embedding for `kerf-slint` (research.md §7): a Slint
 # platform with no event loop that renders into a buffer the host owns. A git
 # pin: the crate is `publish = false`.
