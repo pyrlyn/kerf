@@ -4,6 +4,8 @@
 "github:pyrlyn/ketch" = "0.0.1" # `kerf-binaries` drives it; its tests run the real binary
 mold = { version = "3.0.0", os = ["linux"] } # linker, Linux only; mise [env] below turns it on where it is installed
 rust = { version = "1.99.1", components = "rustfmt,clippy" } # latest stable at project start
+node = "24.22.0" # Active LTS; runtime for the npm: tools below
+"npm:agent-device" = "0.21.31" # lets agents launch and drive the Kerf desktop app
 
 [env]
 # mold as the Linux linker only where mise has installed it (clang is the driver): without mold
