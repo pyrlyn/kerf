@@ -4,7 +4,7 @@
 "github:pyrlyn/ketch" = "0.0.1" # `kerf-binaries` drives it; its tests run the real binary
 mold = { version = "3.0.0", os = ["linux"] } # linker, Linux only; mise [env] below turns it on where it is installed
 rust = { version = "1.99.1", components = "rustfmt,clippy" } # latest stable at project start
-node = "24.22.0" # Active LTS; runtime for the npm: tools below
+node = "26.12.1" # Active LTS; runtime for the npm: tools below
 "npm:agent-browser" = "0.39.2" # browser automation CLI for agents: Check web docs and web-rendered content in a real browser.
 "npm:agent-device" = "0.21.31" # device/app automation CLI for agents (Callstack): Launch and drive the Kerf desktop app.
 
