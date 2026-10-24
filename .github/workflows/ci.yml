@@ -73,7 +73,7 @@ jobs:
       value: ${{ steps.r.outputs.value }}
     steps:
       - id: r
-        uses: pyrlyn/ci/.github/actions/macos-runner@3fa4275e525269297a4d193c427f965ad9dd7544 # main
+        uses: pyrlyn/ci/.github/actions/macos-runner@main
         with:
           runner: ${{ vars.MACOS_RUNNER }}
           value: '["xcode-27"]'
@@ -94,7 +94,9 @@ jobs:
         working-directory: macos
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pyrlyn/ci/.github/actions/setup-xcode@3fa4275e525269297a4d193c427f965ad9dd7544 # main
+        with:
+          persist-credentials: false
+      - uses: pyrlyn/ci/.github/actions/setup-xcode@main
         with:
           version: "27"
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
