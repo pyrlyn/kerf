@@ -1,29 +1,103 @@
 {
   "version": 1,
   "skills": {
+    "agent-browser": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skills/agent-browser/SKILL.md",
+      "computedHash": "d7d2d096922191df17d77f7d7fb88c002c880daa172a9039060099842cb9ed15"
+    },
+    "agent-browser-dogfood": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/dogfood/SKILL.md",
+      "computedHash": "4d1145a16545e18e34f53c82b41974a6bc9e679ce84bffe14e11d15cce3fb1fd"
+    },
     "agent-device": {
       "source": "callstack/agent-device",
       "sourceType": "github",
+      "ref": "a9fc9a19f05a04b78771232a6d6574af7c4e8387",
       "skillPath": "skills/agent-device/SKILL.md",
-      "computedHash": "229cda2fac982b53ef2a4d0ec284d8cc89a1937c772528e3c98b9f2ba302984d"
+      "computedHash": "2f6a75785393abd20dbfdd26b934e174f85771a21c0f8c676591fa626059e9da"
+    },
+    "agentcore": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/agentcore/SKILL.md",
+      "computedHash": "73fc962256ae0483f0e9f6ea2a4c5d82475b5ffda2b09563573839cf115c872c"
     },
     "android-emulator": {
       "source": "callstack/agent-device",
       "sourceType": "github",
+      "ref": "a9fc9a19f05a04b78771232a6d6574af7c4e8387",
       "skillPath": "skills/android-emulator/SKILL.md",
-      "computedHash": "e739ae453a03287e3a862e70fa704b1cad46510883fae6b1cc00bcf266970ac0"
+      "computedHash": "964fbbfcd811568d521e2976601642aa0f94a1e0d985c613bbe81c24ce1263e9"
+    },
+    "core": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/core/SKILL.md",
+      "computedHash": "8429ff520cf6d96666c39fd4430c65ead15c7a81ede08f5b515c0d506b9a99a3"
+    },
+    "derive-client": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/derive-client/SKILL.md",
+      "computedHash": "d375fbe8c9c5fdf02019b02cac0b0ee1d23cf7dec5d0c25fa1cd0ba31b0e9af9"
     },
     "dogfood": {
       "source": "callstack/agent-device",
       "sourceType": "github",
+      "ref": "a9fc9a19f05a04b78771232a6d6574af7c4e8387",
       "skillPath": "skills/dogfood/SKILL.md",
-      "computedHash": "8e6dfbff0633e355210ce7ae109cb39a3e1347946b6e92aaa607271154526b6b"
+      "computedHash": "fa75623fd171b80ce1cb99406204a34424ca4aae429a2a1ddac60ec687f22a15"
+    },
+    "electron": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/electron/SKILL.md",
+      "computedHash": "ecc5aa8cc49906cc4479359b4f5051247cf9867f93de277fdff5c70b41aa2800"
     },
     "ios-simulator": {
       "source": "callstack/agent-device",
       "sourceType": "github",
+      "ref": "a9fc9a19f05a04b78771232a6d6574af7c4e8387",
       "skillPath": "skills/ios-simulator/SKILL.md",
-      "computedHash": "69b9860b2f9cdaf69c160fff946f25a50918979952064796377510cbe8183942"
+      "computedHash": "13eea77e40b7a16fd4bfa50b91874dd1df7321ed69d23ab9212ec9695c1d993b"
+    },
+    "protected-vercel-deployments": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/protected-vercel-deployments/SKILL.md",
+      "computedHash": "adee07851f0a6c5e886edb8a27e796d18ef06c56fd16b059c0cbca4353802ba3"
+    },
+    "slack": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/slack/SKILL.md",
+      "computedHash": "9165128526bfad162f54a3f930679c6928461a24a2f44df0e72cddc1f66cec12"
+    },
+    "vercel-sandbox": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/vercel-sandbox/SKILL.md",
+      "computedHash": "55266fe0adf42843ca0773516a9a06b323c70ac0183037b317561db2e01306f9"
+    },
+    "webmcp-gen": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "ref": "v0.39.2",
+      "skillPath": "skill-data/webmcp-gen/SKILL.md",
+      "computedHash": "965d3b10c93c9e21d0db17759d0eb671d2747d841db886df51ec7b54bda3f44e"
     }
   }
 }
