@@ -47,4 +47,4 @@ git clone https://github.com/pyrlyn/kerf && less kerf/research.md
 
 - Repository: <https://github.com/pyrlyn/kerf>
 - Research: <https://github.com/pyrlyn/kerf/blob/main/research.md>
-- License: your choice of GNU GPLv3, a royalty-free license, or a commercial license (see <https://github.com/pyrlyn/kerf#license>)
+- License: your choice of GNU GPLv3 or a commercial license (see <https://github.com/pyrlyn/kerf#license>)
