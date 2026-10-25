@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! Installs through the real `ketch` against a local stand-in for the GitHub
-//! API, so no test touches the network. ketch comes from `mise.toml`; set
+//! Installs through the real the package manager against a local stand-in for the GitHub
+//! API, so no test touches the network. The package manager comes from `mise.toml`; set
 //! `KERF_KETCH` to use another build.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -22,7 +22,7 @@ const REPO: &str = "acme/demo-ls";
 type Routes = Arc<Mutex<HashMap<String, Vec<u8>>>>;
 
 /// A loopback HTTP server answering GET with fixed bodies, enough of the
-/// GitHub API for `ketch sync`: a release by tag and its asset download.
+/// GitHub API for `the package manager sync`: a release by tag and its asset download.
 struct Remote {
     base: String,
     routes: Routes,

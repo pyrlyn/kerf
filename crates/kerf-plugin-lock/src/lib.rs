@@ -1,9 +1,9 @@
 //! The plugin lockfile: a committed record of which plugin ids, versions and
 //! package digests a workspace runs.
 //!
-//! cox has no lockfile, so the format is Kerf's and kept small. The digest is
-//! cox's package digest as is (SHA-256 hex over the package tree, the
-//! `package_digest` that `cox-plugin` and `wasm-plugin-host` compute); this
+//! The coding agent has no lockfile, so the format is Kerf's and kept small. The digest is
+//! The coding agent's package digest as is (SHA-256 hex over the package tree, the
+//! `package_digest` that `agent-plugin` and `wasm-plugin-host` compute); this
 //! crate stores and compares it and never defines a second one.
 //!
 //! ```toml
@@ -65,7 +65,7 @@ pub struct Lockfile {
 pub struct Entry {
     /// The version from the plugin's manifest.
     pub version: String,
-    /// cox's package digest of the installed package.
+    /// The coding agent's package digest of the installed package.
     pub digest: Digest,
 }
 
@@ -94,7 +94,7 @@ impl From<Format> for u32 {
     }
 }
 
-/// A package digest: 64 lowercase hex characters, the form cox's
+/// A package digest: 64 lowercase hex characters, the form the coding agent's
 /// `package_digest` returns.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]

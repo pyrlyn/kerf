@@ -3,7 +3,7 @@
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
 //! The one module that reads `plugin.toml`. The shape and its structural
-//! checks are cox's (`cox_plugin_api::PluginManifest`, `deny_unknown_fields`
+//! checks are the coding agent's (`agent_plugin_api::PluginManifest`, `deny_unknown_fields`
 //! at every level); this module adds only what Kerf refuses on top of them.
 
 use std::fs::File;
@@ -20,7 +20,7 @@ pub const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
 /// few MiB; anything past this is refused rather than buffered.
 pub const MAX_WASM_BYTES: u64 = 64 * 1024 * 1024;
 
-/// A validated cox manifest, as `wasm-plugin-host` discovery wants it.
+/// A validated the coding agent manifest, as `wasm-plugin-host` discovery wants it.
 #[derive(Debug, Clone)]
 pub struct Manifest(pub PluginManifest);
 

@@ -15,7 +15,7 @@
 //!   thread, the loop only polls, and any edit cancels the request in flight
 //!   so a suggestion for stale text is never shown.
 //!
-//! Chat and agents are not here: they go through `cox acp`.
+//! Chat and agents are not here: they go through `the coding agent acp`.
 
 // Tests assert with `expect`/`unwrap`; the deny list is for shipped code.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]

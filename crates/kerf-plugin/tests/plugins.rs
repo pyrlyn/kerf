@@ -37,7 +37,7 @@ const ANSWER_AND_BOOM: &str = r#"
     (i32.const 0))
   (func (export "boom") (result i32) unreachable)"#;
 
-/// A module whose `cox_init` answers `init` (JSON) and that also exports
+/// A module whose `agent_init` answers `init` (JSON) and that also exports
 /// `answer` and `boom`.
 fn module(init: &str) -> String {
     let len = init.len();

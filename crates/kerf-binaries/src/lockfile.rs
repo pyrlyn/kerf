@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! The one place that writes ketch's lockfile format.
+//! The one place that writes the package manager's lockfile format.
 //!
-//! A `ketch.lock` entry whose `target` is the host is the only way ketch's
-//! command line holds a download to a digest the caller chose: `ketch sync`
+//! A `the package manager.lock` entry whose `target` is the host is the only way the package manager's
+//! command line holds a download to a digest the caller chose: `the package manager sync`
 //! refuses the asset before unpacking if its SHA-256 differs. The format is
-//! ketch's (its `docs/LOCKFILE.md`), so Kerf keeps no schema for it and writes
+//! The package manager's (its `docs/LOCKFILE.md`), so Kerf keeps no schema for it and writes
 //! only the keys it needs.
 
 use std::path::Path;
@@ -43,7 +43,7 @@ pub(crate) fn render(spec: &BinarySpec, target: &str, pin: &Pin) -> Result<Strin
         package: [Package {
             name: &spec.name,
             source: format!("github:{}", spec.repo),
-            // `version` is for humans; ketch resolves `tag`.
+            // `version` is for humans; the package manager resolves `tag`.
             version: spec.tag.strip_prefix('v').unwrap_or(&spec.tag),
             tag: &spec.tag,
             target,
@@ -54,7 +54,7 @@ pub(crate) fn render(spec: &BinarySpec, target: &str, pin: &Pin) -> Result<Strin
     Ok(toml::to_string(&lock)?)
 }
 
-/// Writes `text` to `path` atomically, so ketch never reads a half-written
+/// Writes `text` to `path` atomically, so the package manager never reads a half-written
 /// lockfile.
 pub(crate) fn write_atomic(path: &Path, text: &str) -> Result<(), Error> {
     fs_kit::write::atomic(path, text).map_err(|source| Error::Io {

@@ -25,7 +25,7 @@ use crate::trigger::{Trigger, triggers};
 
 /// The `.<app>` directory project plugins live under: `<project>/.kerf/plugins/`.
 pub const APP: &str = "kerf";
-/// The export every module must have; cox's ABI runs it once at activation.
+/// The export every module must have; the coding agent's ABI runs it once at activation.
 pub const INIT_EXPORT: &str = "cox_init";
 /// Consecutive failed calls after which a plugin is disabled for the session.
 pub const MAX_STRIKES: u32 = 3;
@@ -46,7 +46,7 @@ pub struct Config {
     pub home: PathBuf,
     /// The open project; its plugins live in `<project>/.kerf/plugins/`.
     pub project_root: Option<PathBuf>,
-    /// The session id passed to `cox_init`.
+    /// The session id passed to `agent_init`.
     pub session_id: String,
 }
 
@@ -55,7 +55,7 @@ pub struct Config {
 pub enum Status {
     /// Manifest read; no code loaded yet.
     Dormant,
-    /// Loaded and `cox_init` answered.
+    /// Loaded and `agent_init` answered.
     Active,
     /// Invalid, refused at load, or failed too often; stays off for the session.
     Disabled(String),
@@ -158,7 +158,7 @@ struct Entry {
     slot: Slot,
 }
 
-/// Grants nothing yet: the `cox:host/v1` and `kerf:host/v1` functions land
+/// Grants nothing yet: the `the coding agent:host/v1` and `kerf:host/v1` functions land
 /// with the tasks that need them. A module importing one fails to load and
 /// is disabled like any other load failure.
 struct Env {
@@ -271,7 +271,7 @@ impl Plugins {
             .map_or(&[], |package| &package.triggers)
     }
 
-    /// What `cox_init` contributed, once the plugin is active.
+    /// What `agent_init` contributed, once the plugin is active.
     pub fn init_out(&self, id: &str) -> Option<&InitOut> {
         match &self.entries.get(id)?.slot {
             Slot::Active { init, .. } => Some(init),
@@ -302,7 +302,7 @@ impl Plugins {
             .collect()
     }
 
-    /// Loads the plugin and runs `cox_init`, unless it is already active.
+    /// Loads the plugin and runs `agent_init`, unless it is already active.
     pub fn activate(&mut self, id: &str) -> Result<(), HostError> {
         let entry = self
             .entries
@@ -386,7 +386,7 @@ impl Plugins {
             // No grant store yet: the gate decides whether a plugin loads at
             // all, and a loaded plugin is told what its manifest asked for.
             granted: serde_json::to_value(&manifest.capabilities).unwrap_or_default(),
-            // Kerf is not one of cox's surfaces; absence is the documented
+            // Kerf is not one of the coding agent's surfaces; absence is the documented
             // "older host" answer, so the guest falls back to its defaults.
             surface: None,
         };

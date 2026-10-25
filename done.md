@@ -7,7 +7,7 @@ The contracts every other task builds on, in `docs/architecture.md`. Done when t
 It covers:
 
 - the core boundary (rendering, buffer, event loop, semantic layer) and the crate map;
-- the plugin lifecycle on cox's ABI as is (`cox:host/v1`, extism, `wasm-plugin-host`): manifest read without running code, lazy activation, crash and disable;
+- the plugin lifecycle on the coding agent's ABI as is (`the coding agent:host/v1`, extism, `wasm-plugin-host`): manifest read without running code, lazy activation, crash and disable;
 - the IDE permission set and the manifest tables for language servers and debug adapters, which are the input for T4.1 and T4.2;
 - how the core starts, supervises, caps and stops LSP and DAP processes;
 - Workspace Trust;
@@ -15,20 +15,20 @@ It covers:
 
 Plan:
 
-1. Read `research.md`, cox's `docs/design/plugins.md`, `crates/cox-plugin-api/src/manifest.rs` and `wasm-plugin-host` (with crates-packages#42).
+1. Read `research.md`, the coding agent's `docs/design/plugins.md`, `crates/agent-plugin-api/src/manifest.rs` and `wasm-plugin-host` (with crates-packages#42).
 2. Write `docs/architecture.md`. Every borrowed idea links to its `research.md` section.
 3. List the open points for the creator at the end of the document.
-4. Verify: every permission and manifest table named in the document maps to a cox concept or is marked new.
+4. Verify: every permission and manifest table named in the document maps to a coding agent concept or is marked new.
 
-### T4. IDE permissions in `cox-plugin-api`
+### T4. IDE permissions in `agent-plugin-api`
 
-Split when claimed (500-line task cap). Add the IDE permission set and the manifest tables for language servers and debug adapters, as T1 defines them, to cox's `cox-plugin-api`, its JSON Schemas and its docs. The plugin declares a process; the host spawns it, as with `[[mcp]]` today.
+Split when claimed (500-line task cap). Add the IDE permission set and the manifest tables for language servers and debug adapters, as T1 defines them, to the coding agent's `agent-plugin-api`, its JSON Schemas and its docs. The plugin declares a process; the host spawns it, as with `[[mcp]]` today.
 
-The work happens in the cox repository and gets a matching task in cox's `plan.md` when it starts. Blocked on T1 only for the final names; the permission families are already in `research.md` (buffer, LSP, DAP, index, terminal, git) and can be implemented against that list.
+The work happens in the coding agent repository and gets a matching task in the coding agent's `plan.md` when it starts. Blocked on T1 only for the final names; the permission families are already in `research.md` (buffer, LSP, DAP, index, terminal, git) and can be implemented against that list.
 
 #### T4.1. IDE permission set
 
-The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-api`, with validation and schema.
+The buffer, LSP, DAP, index, terminal and git permission classes in `agent-plugin-api`, with validation and schema.
 
 #### T4.2. LSP and DAP manifest tables
 
@@ -36,9 +36,9 @@ The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-
 
 #### T4 outcome
 
-MiMo's [pyrlyn/cox#367](https://github.com/pyrlyn/cox/pull/367) had already landed both subtasks in cox with names that differ from the first draft of `docs/architecture.md` §4: `[capabilities.ide]` with `ide.*` grant lines, and the LSP/DAP tables keyed by `languages` (plus `globs`, `env`, `config`). Those names were kept, so T6 needed no change. [pyrlyn/cox#385](https://github.com/pyrlyn/cox/pull/385) (cox T380) tightened least privilege: `ide.buffer` is `"read"` | `"edit"` and `ide.git` is `"read"` | `"write"` (stage and commit only), with grant lines `ide.buffer.read`, `ide.buffer.edit`, `ide.git.read`, `ide.git.write`; a language server needs `languages` or `globs` and a debug adapter needs `languages`. `docs/architecture.md` §3.4, §4, §7 and §8 decisions 6, 8 and 9 now describe what cox has.
+MiMo's [pyrlyn/cox#367](https://github.com/pyrlyn) had already landed both subtasks in the coding agent with names that differ from the first draft of `docs/architecture.md` §4: `[capabilities.ide]` with `ide.*` grant lines, and the LSP/DAP tables keyed by `languages` (plus `globs`, `env`, `config`). Those names were kept, so T6 needed no change. [pyrlyn/cox#385](https://github.com/pyrlyn) (the coding agent T380) tightened least privilege: `ide.buffer` is `"read"` | `"edit"` and `ide.git` is `"read"` | `"write"` (stage and commit only), with grant lines `ide.buffer.read`, `ide.buffer.edit`, `ide.git.read`, `ide.git.write`; a language server needs `languages` or `globs` and a debug adapter needs `languages`. `docs/architecture.md` §3.4, §4, §7 and §8 decisions 6, 8 and 9 now describe what the coding agent has.
 
-Tests (in cox): `ide_caps_parse_per_family_and_validate`, `ide_buffer_and_git_refuse_a_flag_or_an_unknown_level`, `language_server_and_debug_adapter_need_something_to_route_on`, `widening_ide_buffer_or_git_needs_approval`, plus #367's table, schema and API-index drift tests; `cargo test -p cox-plugin-api -p cox-plugin`, workspace clippy `-D warnings` and `fmt --check` green.
+Tests (in the coding agent): `ide_caps_parse_per_family_and_validate`, `ide_buffer_and_git_refuse_a_flag_or_an_unknown_level`, `language_server_and_debug_adapter_need_something_to_route_on`, `widening_ide_buffer_or_git_needs_approval`, plus #367's table, schema and API-index drift tests; `cargo test -p agent-plugin-api -p agent-plugin`, workspace clippy `-D warnings` and `fmt --check` green.
 
 ### T2. Core skeleton
 
@@ -182,7 +182,7 @@ Rust is the first language. Scope stays within the 500-line task cap; more langu
 
 Plan:
 
-1. Reuse check, done: rtok's tags code (`src/plugins/read/outline.rs`) runs `TagsContext::generate_tags`, which always parses the whole file and takes no existing tree, so it cannot be incremental. The only overlap is a few lines of extra Rust query. Write the minimum here; nothing in rtok changes.
+1. Reuse check, done: the token CLI's tags code (`src/plugins/read/outline.rs`) runs `TagsContext::generate_tags`, which always parses the whole file and takes no existing tree, so it cannot be incremental. The only overlap is a few lines of extra Rust query. Write the minimum here; nothing in the token CLI changes.
 2. Edits come in as `kerf_core::EditEvent` plus the post-edit text. T2 has merged, so a second edit-event type would duplicate it. `kerf-semantic` depends on `kerf-core` for that type only, never on the buffer.
 3. `crates/kerf-semantic`:
    - `document.rs`: source and tree per file; `EditEvent` → `InputEdit`, validated against both texts; incremental re-parse with the old tree.
@@ -197,12 +197,12 @@ Result: definition recall 1.000 and reference recall 1.000 on `tests/fixtures/re
 
 ### T6. Plugin host on `wasm-plugin-host`
 
-`crates/kerf-plugin`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on cox's ABI (`cox:host/v1`, extism), not a third copy of cox's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
+`crates/kerf-plugin`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on the coding agent's ABI (`the coding agent:host/v1`, extism), not a third copy of the coding agent's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
 
 Plan:
 
-1. Depend on `wasm-plugin-host` and `cox-plugin-api` as git dependencies pinned by `rev` (`pyrlyn/crates`, `pyrlyn/cox`): neither is on crates.io, and the crates.io name `wasm_plugin_host` belongs to an unrelated crate, so the registry route in `rust.md` is closed.
-2. `crates/kerf-plugin`: `manifest` (the one module that reads `plugin.toml` into cox's `PluginManifest` with `toml`, then `validate`), `trigger` (activation triggers derived from `[[language_servers]]` and `[[debug_adapters]]`, read without running code), `host` (discover through `wasm-plugin-host`, a gate for siblings T7/T10, lazy load and `cox_init` on the first matching trigger, calls through the control or event lane, three consecutive failures or a failed `cox_init` disable the plugin).
+1. Depend on `wasm-plugin-host` and `agent-plugin-api` as git dependencies pinned by `rev` (`pyrlyn/crates`, `pyrlyn/cox`): neither is on crates.io, and the crates.io name `wasm_plugin_host` belongs to an unrelated crate, so the registry route in `rust.md` is closed.
+2. `crates/kerf-plugin`: `manifest` (the one module that reads `plugin.toml` into the coding agent's `PluginManifest` with `toml`, then `validate`), `trigger` (activation triggers derived from `[[language_servers]]` and `[[debug_adapters]]`, read without running code), `host` (discover through `wasm-plugin-host`, a gate for siblings T7/T10, lazy load and `agent_init` on the first matching trigger, calls through the control or event lane, three consecutive failures or a failed `agent_init` disable the plugin).
 3. Tests with WAT fixtures: a manifest is read without loading wasm, a plugin activates only on its trigger, answers a call, a trapping plugin is disabled while another plugin keeps answering, project plugins are refused by the default gate, the notice list is capped.
 4. Verify: `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`. Rows in `toolchain.md`.
 
@@ -230,19 +230,19 @@ Split when claimed (500-line task cap); both subtasks land in one PR, in order.
 
 Result: `Semantic::merge_lsp` and Python in `kerf-semantic`, the client in `crates/kerf-lsp` with the scripted server `kerf-fake-lsp`. Recall on `recall.rs` (23 definitions, 31 references): tree-sitter alone 0.957 and 0.968; with the scripted answers 1.000 and 1.000, both in-process and over the wire, two symbols added, no unlabelled hits. `recall.py` (11 definitions, 15 references): 1.000 and 1.000 with the upstream query. Not done here: process counts and the restart budget of `docs/architecture.md` §5.2 (they belong to `kerf-process`), and diagnostics.
 
-### T11. Language-server and debug-adapter binaries through ketch
+### T11. Language-server and debug-adapter binaries through the package manager
 
-Install and update language-server and debug-adapter binaries from GitHub releases with checksums, through ketch. Done when a test installs a pinned binary from a local fixture release, rejects a bad checksum, and the core resolves the installed path.
+Install and update language-server and debug-adapter binaries from GitHub releases with checksums, through the package manager. Done when a test installs a pinned binary from a local fixture release, rejects a bad checksum, and the core resolves the installed path.
 
 Plan:
 
-1. Study ketch (read-only): library crate or CLI only, how it verifies checksums, how it can be pointed at a local release.
-2. Add a crate: a pinned binary spec (repo, tag, per-target asset and sha256, binary name), install through ketch into a Kerf-owned root, and `resolve` returning the installed binary path the core spawns.
+1. Study the package manager (read-only): library crate or CLI only, how it verifies checksums, how it can be pointed at a local release.
+2. Add a crate: a pinned binary spec (repo, tag, per-target asset and sha256, binary name), install through the package manager into a Kerf-owned root, and `resolve` returning the installed binary path the core spawns.
 3. Treat every download as untrusted: cap the download and the installed size, hold the asset to the pinned sha256 before anything is unpacked, refuse a binary that resolves outside the root.
 4. Tests against a local fixture release (no network): install a pinned binary, reject a bad checksum, resolve the path, refuse oversize downloads and installs.
 5. Verify with `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`; update `toolchain.md`.
 
-Result: `crates/kerf-binaries` drives the `ketch` CLI. `ketch-core` is a library but unpublished, pulls SQLite, octocrab/tokio and signature stacks, and is GPL-only, which would remove Kerf's royalty-free licence option. `Installer::install` writes a one-entry `ketch.lock` for the host target and runs `ketch sync`, the only CLI path that holds a download to a caller-chosen digest; ketch refuses a mismatch before unpacking. Downloads are capped through `KETCH_MAX_DOWNLOAD_MIB`; ketch has no unpack cap, so Kerf measures the installed tree and uninstalls it when over its cap. Six integration tests run the real ketch (from `mise.toml`, also installed in CI) against a loopback stand-in for the GitHub API.
+Result: `crates/kerf-binaries` drives the package manager CLI. `pkgmgr-core` is a library but unpublished, pulls SQLite, octocrab/tokio and signature stacks, and is GPL-only, which would remove Kerf's royalty-free licence option. `Installer::install` writes a one-entry `the package manager.lock` for the host target and runs `the package manager sync`, the only CLI path that holds a download to a caller-chosen digest; the package manager refuses a mismatch before unpacking. Downloads are capped through `PKGMGR_MAX_DOWNLOAD_MIB`; the package manager has no unpack cap, so Kerf measures the installed tree and uninstalls it when over its cap. Six integration tests run the real the package manager (from `mise.toml`, also installed in CI) against a loopback stand-in for the GitHub API.
 
 ### T9. Inspections with quick fixes
 
@@ -250,9 +250,9 @@ A plugin export that runs over the core's index and returns diagnostics with edi
 
 Plan:
 
-1. Reuse check: `kerf-core` already has the undoable replace (`TextBuffer::apply`) and `kerf-semantic` the per-file symbols (`FileSymbols`); cox's `cox-plugin-api` `abi.rs` sets the JSON style (`api` major in the input, no `deny_unknown_fields`, caps as consts). Nothing to extract.
+1. Reuse check: `kerf-core` already has the undoable replace (`TextBuffer::apply`) and `kerf-semantic` the per-file symbols (`FileSymbols`); the coding agent's `agent-plugin-api` `abi.rs` sets the JSON style (`api` major in the input, no `deny_unknown_fields`, caps as consts). Nothing to extract.
 2. New crate `crates/kerf-inspect`:
-   - `contract.rs`: `InspectIn` (`api`, file path and text, the file's index slice) and `InspectOut` (diagnostics with severity, byte range, message and fixes made of edits), serde JSON in cox's ABI style; export name `kerf_inspect`.
+   - `contract.rs`: `InspectIn` (`api`, file path and text, the file's index slice) and `InspectOut` (diagnostics with severity, byte range, message and fixes made of edits), serde JSON in the coding agent's ABI style; export name `kerf_inspect`.
    - `runner.rs`: an `Inspection` trait (JSON bytes in, bytes out) so T6's plugin host plugs in later; the runner builds the input from `TextBuffer` and `Semantic`, caps the reply size before parsing, then validates and caps diagnostics, fixes, edits, text lengths, ranges (in bounds, on character boundaries, edits sorted and not overlapping). A bad reply is a typed error and no diagnostics.
    - Applying a fix: its edits collapse into one replace over their span, so it is one `TextBuffer` undo step and one `EditEvent`; it refuses a buffer that changed under the span since the run.
 3. Tests with an in-process fake inspection: a problem reported on a fixture, the fix applies and undoes, the index re-reads the edit; oversized, malformed, out-of-range, overlapping and over-cap replies are rejected; a stale fix is refused.
@@ -263,7 +263,7 @@ Result: `crates/kerf-inspect` with the `kerf_inspect` contract (`api = 1`), the 
 
 ### T14. Local code completion
 
-A fill-in-the-middle endpoint in runa, used by the editor. Chat and agents go through `cox acp`, not here. The runa side is a matching task in runa's `plan.md`; the Kerf side is a completion client with a timeout, a size cap and cancellation on the next edit. Done when Kerf's client passes tests against a fake endpoint and runa's endpoint has its own tests.
+A fill-in-the-middle endpoint in runa, used by the editor. Chat and agents go through `the coding agent acp`, not here. The runa side is a matching task in runa's `plan.md`; the Kerf side is a completion client with a timeout, a size cap and cancellation on the next edit. Done when Kerf's client passes tests against a fake endpoint and runa's endpoint has its own tests.
 
 Plan:
 
@@ -281,7 +281,7 @@ The plugin host and the language servers run next to the code; the UI stays loca
 
 Execution plan:
 
-1. `research.md` §6: how Zed's remote server, VS Code Remote - SSH and `cox acp` split UI and host, with primary sources; pick the wire format and the framing crate.
+1. `research.md` §6: how Zed's remote server, VS Code Remote - SSH and `the coding agent acp` split UI and host, with primary sources; pick the wire format and the framing crate.
 2. New crate `crates/kerf-remote` (crate map row in `docs/architecture.md`): JSON-RPC 2.0, one JSON object per line (ACP's stdio framing). Framing through `tokio-util`'s `LinesCodec` with a maximum line length, envelopes through `jsonrpsee-types`; no hand-written framing.
 3. `initialize` carries the protocol `{ major, minor }`; an unknown major is refused with a typed error and the connection ends. Methods: `buffer/open|read|edit|undo|redo|close`, `index/lookup`.
 4. Headless `Host` owns `kerf-core` buffers and `kerf-semantic` under a workspace root. Sans-IO `Connection` (bytes in, bytes out) with caps on message size (both directions), inbound queue depth, open buffers and buffer size; `serve(Read, Write)` drives it over any byte stream; `kerf-host` binary serves stdio, which SSH carries.
@@ -320,7 +320,7 @@ Result: crate `crates/kerf-plugin-lock` with `Lockfile::read`, `write`, `pin`, `
 
 Plan:
 
-1. Reuse from cox: it has no lockfile, but it has the package digest (`cox-plugin` `package_digest`, the same function `wasm-plugin-host` carries: SHA-256 hex over the package tree). The lockfile stores that digest; it does not define a second one.
+1. Reuse from the coding agent: it has no lockfile, but it has the package digest (`agent-plugin` `package_digest`, the same function `wasm-plugin-host` carries: SHA-256 hex over the package tree). The lockfile stores that digest; it does not define a second one.
 2. New crate `crates/kerf-plugin-lock`, the one module that reads and writes the lockfile: `format = 1` and a `[plugins.<id>]` table of `version` and `digest` (a table keyed by id makes a duplicate id a TOML error), TOML through `toml`, written atomically through `fs-kit`, sorted by id.
 3. Validation in the types (`deny_unknown_fields`, a 64-hex digest newtype, `format` other than 1 refused); the file is repository input, so reads are capped at 1 MiB.
 4. `Lockfile::verify(id, version, digest)` for the plugin host (T6) to call before it loads a package; mismatch and missing entry are typed errors.
