@@ -15,7 +15,7 @@ pub enum Error {
     /// The spec pins no asset for the machine Kerf runs on.
     #[error("no pinned asset for this machine ({target})")]
     UnsupportedTarget {
-        /// The host as ketch names targets.
+        /// The host as the package manager names targets.
         target: String,
     },
     /// Reading or writing a file under the binaries root failed.
@@ -26,10 +26,10 @@ pub enum Error {
         /// The underlying error.
         source: std::io::Error,
     },
-    /// The lockfile for ketch could not be rendered.
+    /// The lockfile for the package manager could not be rendered.
     #[error("could not write the ketch lockfile: {0}")]
     Lockfile(#[from] toml::ser::Error),
-    /// The ketch program could not be started.
+    /// The package manager program could not be started.
     #[error("could not run ketch ({}): {source}", program.display())]
     Spawn {
         /// The program Kerf tried to run.
@@ -37,14 +37,14 @@ pub enum Error {
         /// The underlying error.
         source: std::io::Error,
     },
-    /// ketch ran and refused: a checksum mismatch, a download over the size
-    /// cap, a missing release. `stderr` is what ketch said, capped and with
+    /// The package manager ran and refused: a checksum mismatch, a download over the size
+    /// cap, a missing release. `stderr` is what the package manager said, capped and with
     /// control characters removed.
     #[error("ketch failed ({status}): {stderr}")]
     Ketch {
         /// Exit status as the OS reports it.
         status: String,
-        /// The head of ketch's error output.
+        /// The head of the package manager's error output.
         stderr: String,
     },
     /// The installed tree is bigger than the cap; it has been uninstalled.

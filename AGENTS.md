@@ -14,13 +14,13 @@ If an `AGENTS.md` or `CLAUDE.md` exists higher in the tree, follow it too; on co
 
 Settled by the creator; reasons are in `research.md`.
 
-- **The plugin contract comes from cox** (`cox-plugin-api`, `cox-plugin`): manifest, ABI, permissions, install flow, SDK and templates. Kerf extends the permission set for the IDE; it does not fork the contract.
+- **The plugin contract comes from the coding agent** (`agent-plugin-api`, `agent-plugin`): manifest, ABI, permissions, install flow, SDK and templates. Kerf extends the permission set for the IDE; it does not fork the contract.
 - **Plugins never spawn processes.** A plugin returns the command for a language server, debug adapter or build; the core checks it against the plugin's permissions and runs it.
 - **What a plugin can do is readable without running its code.** The core reads capabilities and activation triggers from the manifest and loads plugin code lazily.
 - **A plugin crash never takes down the IDE.** Plugins run in a sandbox and talk to the core through versioned interfaces.
 - **The core keeps its own semantic layer.** Language servers add to it; they do not replace it.
-- **Plugin ABI: cox's, as is.** Plugins are core WASM modules called with JSON through extism (`cox:host/v1`), hosted by the shared `wasm-plugin-host` crate. No WIT components.
-- **Licence:** `GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free`, plus a commercial licence (`PRICING.md`), the same terms as cox.
+- **Plugin ABI: the coding agent's, as is.** Plugins are core WASM modules called with JSON through extism (`the coding agent:host/v1`), hosted by the shared `wasm-plugin-host` crate. No WIT components.
+- **Licence:** `GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free`, plus a commercial licence (`PRICING.md`), the same terms as the coding agent.
 
 ## Hard rules
 

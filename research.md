@@ -4,7 +4,7 @@ How existing IDEs and editors split the core from plugins, and what Kerf takes f
 
 ## 1. Conclusion
 
-- **Plugin contract:** take cox's (`cox-plugin-api`, `cox-plugin`) as is: manifest, ABI, grants, install flow, SDK, templates. Extend the permission set for the IDE: buffer, LSP, DAP, index, terminal, git.
+- **Plugin contract:** take the coding agent's (`agent-plugin-api`, `agent-plugin`) as is: manifest, ABI, grants, install flow, SDK, templates. Extend the permission set for the IDE: buffer, LSP, DAP, index, terminal, git.
 - **Core:** rendering, text buffer, event loop and Kerf's own semantic layer: tree-sitter, an incremental index, a PSI-like code model.
 - **Languages and debugging:** LSP and DAP servers run as separate processes. The core starts them on a plugin's declaration; the plugin never spawns them.
 
@@ -36,7 +36,7 @@ No surveyed product has all three. Zed comes closest (WASM sandbox, capabilities
 - `language-server-command` returns `{command, args, env}`. `get-dap-binary` returns the debug adapter binary: https://github.com/zed-industries/zed/blob/main/crates/extension_api/wit/since_v0.8.0/extension.wit, https://github.com/zed-industries/zed/blob/main/crates/extension_api/wit/since_v0.8.0/dap.wit
 - Extensions can also call `process.run-command`, `download-file` and npm install themselves.
 - Capabilities are `process:exec`, `download_file` and `npm:install`. The user restricts them with `granted_extension_capabilities`; the defaults are wildcards: https://zed.dev/docs/extensions/capabilities
-  - Unlike cox, these grants are a user setting, not permissions declared in each extension's manifest.
+  - Unlike the coding agent, these grants are a user setting, not permissions declared in each extension's manifest.
 - "Extensions cannot draw custom UI": **unverified** as a statement. The docs list only languages, debuggers, themes, icon themes, snippets, MCP servers and slash commands, and the WIT has no UI interface.
 - Zed implements the DAP client: https://zed.dev/docs/debugger
 - Worktree trust (Restricted Mode): every worktree starts restricted, and project settings, language-server and MCP-server installs and spawns wait for trust. Trusting a directory covers all its subdirectories; manual grants persist across restarts per host (checked 2026-10-19): https://zed.dev/docs/worktree-trust
@@ -109,7 +109,7 @@ There is no official Emacs binary for macOS or Linux, and Kate publishes no size
 1. **Zed:** versioned WASM interfaces, and an extension that hands the core the launch command for a language server and a debug adapter.
    - Unlike Zed, Kerf takes no `process:exec` or `download_file` host calls, and grants are per-plugin manifest entries, not a user-wide setting.
 2. **VS Code:** capabilities and activation triggers declared in the manifest and read without running plugin code, lazy activation, and Workspace Trust.
-3. **Processes stay in the core.** Language servers, debuggers and builds run as separate processes the core starts. cox already works this way: a plugin declares `[[mcp]]` and `[[external_agents]]` processes in its manifest, the host spawns them under its sandbox policy, and each one is a separate approval line (section 4).
+3. **Processes stay in the core.** Language servers, debuggers and builds run as separate processes the core starts. The coding agent already works this way: a plugin declares `[[mcp]]` and `[[external_agents]]` processes in its manifest, the host spawns them under its sandbox policy, and each one is a separate approval line (section 4).
 4. **IntelliJ:** inspections with quick fixes, exported by plugins over the core's index.
 5. **Visual Studio:** core APIs as versioned RPC contracts. A crash in an extension never takes down the IDE.
 6. **Lapce:** in remote development, the plugin host runs next to the code.
@@ -118,27 +118,27 @@ There is no official Emacs binary for macOS or Linux, and Kate publishes no size
 
 ## 4. Our repositories
 
-Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft `0f91f26`, slint-bindings `4d61045`, slint_dart `12de634`, slint-flutter `4807387`, ketch `3ca16c0`, ketch-registry `3c3eeb1`, rtok `c43c86d92`, runa `02f9cc1`, cross-code `3d19c35`, stator `18c278f`.
+Commits at the time of checking: crates-packages `77ba2b1`, the coding agent `5a17a0ef`, weft `0f91f26`, slint-bindings `4d61045`, slint_dart `12de634`, slint-flutter `4807387`, the package manager `3ca16c0`, pkgmgr-registry `3c3eeb1`, the token CLI `c43c86d92`, runa `02f9cc1`, cross-code `3d19c35`, stator `18c278f`.
 
 ### Plugin host: `wasm-plugin-host` (listepo/crates-packages, v0.1.0, MIT OR Apache-2.0)
 
 - It is extism 1.30 on wasmtime 43. It loads core WASM modules, not components (`wasm-plugin-host/Cargo.toml:21-33`, `src/host.rs`).
 - It runs one worker thread per plugin with two bounded lanes: control 16 and events 256. A full lane answers `Busy`. A watchdog cancels a call at its deadline (`src/host.rs:25-27`, `:307-329`).
 - WASI is off, extism HTTP is compiled out, and memory is capped (16 MiB default, 64 MiB max). There is no fuel metering; deadlines use timeouts (`src/host.rs:167-172`).
-- It has no manifest or permission model; those live in cox.
+- It has no manifest or permission model; those live in the coding agent.
 - Wasmtime uses Cranelift, a JIT, so its native code cannot run on iOS (section "Mobile" below); §8 runs it on wasmtime's Pulley interpreter instead.
-- cox does not depend on it yet. cox keeps a near-identical host in `apps/cox/crates/cox-plugin/src/host.rs:124`.
-- PR #42, "package layout for discovery, staging and removal", is open, mergeable and +1099/−5 (https://github.com/listepo/crates-packages/pull/42, 2026-10-09). It ports cox's on-disk layout as a generic module:
+- The coding agent does not depend on it yet. the coding agent keeps a near-identical host in `apps/agent/crates/agent-plugin/src/host.rs:124`.
+- PR #42, "package layout for discovery, staging and removal", is open, mergeable and +1099/−5 (https://github.com/listepo/crates-packages/pull/42, 2026-10-09). It ports the coding agent's on-disk layout as a generic module:
   - user plugins live at `<home>/plugins/<id>/versions/<digest12>/`, with `current` and `previous`;
   - project plugins live at `<project>/.<app>/plugins/<id>/`;
   - the package digest is a SHA-256 of the tree;
   - staging is atomic and refuses symlinks.
 - GitHub Actions is off in that repository, so CI did not run on it.
 
-### Contract: cox (pyrlyn/cox)
+### Contract: the coding agent (pyrlyn/cox)
 
-- **Licences:** `cox-plugin-api` and the SDK are MIT OR Apache-2.0 (`crates/cox-plugin-api/Cargo.toml:8`, `plugins/Cargo.toml:13`). The host crate `cox-plugin` is under the cox workspace licence, GPL-3.0-or-later or a royalty-free licence (`Cargo.toml:15`). Copying host code into Kerf is bound by that licence.
-- **Manifest:** `plugin.toml` with `deny_unknown_fields` (`crates/cox-plugin-api/src/manifest.rs:19-60`).
+- **Licences:** `agent-plugin-api` and the SDK are MIT OR Apache-2.0 (`crates/agent-plugin-api/Cargo.toml:8`, `plugins/Cargo.toml:13`). The host crate `agent-plugin` is under the coding agent workspace licence, GPL-3.0-or-later or a royalty-free licence (`Cargo.toml:15`). Copying host code into Kerf is bound by that licence.
+- **Manifest:** `plugin.toml` with `deny_unknown_fields` (`crates/agent-plugin-api/src/manifest.rs:19-60`).
   - Fields: `api = 1`, an `id` matching `^[a-z][a-z0-9-]{1,23}$`, `version`, `wasm`, `[limits]` (`memory_mib`, `call_ms`) and `[capabilities]`.
   - Declarative tables: `[[provider]]`, `[[models]]`, `[[mcp]]`, `[[external_agents]]`, `[[agents]]`.
   - JSON Schemas are committed in `docs/plugin.schema.json` and `docs/plugin-abi.schema.json`.
@@ -146,18 +146,18 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
   - `events:`, `hooks:`, `tools:`, `invoke:`, `net:<host>`, `fs.read:`/`fs.write:` (rooted at `$WORKSPACE` or `$PLUGIN_DATA`), `decide:` and `ui.render:`;
   - the flags `wasi`, `context`, `kv`, `ui.status`, `ui.panel`, `ui.overlay`, `ui.commands` and `ui.keys`;
   - `model:`, `provider:`, `mcp:`, `agent:` and `subagent:`.
-  - Grants are bound to the package digest, so changed bytes prompt again (`crates/cox-plugin/src/grant.rs:33-50`).
-- **ABI:** `cox:host/v1`, JSON over extism (`crates/cox-plugin/src/hostfn.rs:43-58`).
-  - Guest exports: `cox_init`, `cox_on_event`, `cox_hook`, `cox_tool_call`, `cox_command`, `cox_key`, `cox_render`, `cox_render_item`, `cox_decide`, `cox_provider_stream`.
-  - Host functions: `cox_log`, `cox_notify`, `cox_kv_*`, `cox_context`, `cox_invoke_tool`, `cox_model_call`, `cox_http`, `cox_output`, `cox_cancelled`, `cox_redraw`.
+  - Grants are bound to the package digest, so changed bytes prompt again (`crates/agent-plugin/src/grant.rs:33-50`).
+- **ABI:** `the coding agent:host/v1`, JSON over extism (`crates/agent-plugin/src/hostfn.rs:43-58`).
+  - Guest exports: `agent_init`, `agent_on_event`, `agent_hook`, `agent_tool_call`, `agent_command`, `agent_key`, `agent_render`, `agent_render_item`, `agent_decide`, `agent_provider_stream`.
+  - Host functions: `agent_log`, `agent_notify`, `agent_kv_*`, `agent_context`, `agent_invoke_tool`, `agent_model_call`, `agent_http`, `agent_output`, `agent_cancelled`, `agent_redraw`.
   - Each host function is checked against the grant and the calling export.
   - Three consecutive failures disable an export (fail-open).
-- **No process spawning by plugins:** no host function spawns a process (`docs/design/plugins.md:413`), and WASI is off (`crates/cox-plugin/src/host.rs:136`). Processes a plugin declares in `[[mcp]]` or `[[external_agents]]` are spawned by the host under `sandbox::Policy` (`crates/cox-plugin/src/external_agent.rs:1-20`). Kerf's LSP and DAP entries follow the same pattern.
-- **Install:** `cox plugin list|install|enable|disable|update|remove|new|link` (`crates/cox/src/cli.rs:407-506`).
+- **No process spawning by plugins:** no host function spawns a process (`docs/design/plugins.md:413`), and WASI is off (`crates/agent-plugin/src/host.rs:136`). Processes a plugin declares in `[[mcp]]` or `[[external_agents]]` are spawned by the host under `sandbox::Policy` (`crates/agent-plugin/src/external_agent.rs:1-20`). Kerf's LSP and DAP entries follow the same pattern.
+- **Install:** `the coding agent plugin list|install|enable|disable|update|remove|new|link` (`crates/agent/src/cli.rs:407-506`).
   - The source can be a local directory, an `https` `.tar.gz` with `--sha256`, or `git+<url>` with `--rev`.
-  - The package is staged under its digest, then `current` is swapped and one `previous` is kept for rollback (`crates/cox-plugin/src/install.rs`).
-- **SDK and templates:** the Rust SDK `cox-plugin-sdk` with a `register!` macro (`plugins/sdk/src/lib.rs`), Rust and Dart templates (`plugins/templates/`), and examples in Rust, Dart and Kotlin.
-- **UI:** a closed `Widget` tree, TUI-oriented, capped at 512 nodes, depth 8 and 16 KiB of text, with style tokens instead of raw colours (`crates/cox-plugin-api/src/ui.rs:14-18`, `:63`).
+  - The package is staged under its digest, then `current` is swapped and one `previous` is kept for rollback (`crates/agent-plugin/src/install.rs`).
+- **SDK and templates:** the Rust SDK `agent-plugin-sdk` with a `register!` macro (`plugins/sdk/src/lib.rs`), Rust and Dart templates (`plugins/templates/`), and examples in Rust, Dart and Kotlin.
+- **UI:** a closed `Widget` tree, TUI-oriented, capped at 512 nodes, depth 8 and 16 KiB of text, with style tokens instead of raw colours (`crates/agent-plugin-api/src/ui.rs:14-18`, `:63`).
 
 ### UI
 
@@ -168,17 +168,17 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 - **slint_dart** (listepo/slint_dart): a Slint ↔ Dart/Flutter toolkit: core, interpreter, typed generator, AOT compiler, Skia, testing (`README.md:5-25`).
 - **slint-flutter** (listepo/slint-flutter): a smaller package of the same idea with a `SlintView` widget. How it relates to slint_dart is **unverified**.
 
-### Marketplace: ketch and ketch-registry
+### Marketplace: the package manager and pkgmgr-registry
 
-- **ketch** installs binaries straight from GitHub releases and checks their published checksums (`apps/ketch/README.md:6-8`). It fits language servers and debug adapters, not plugin packages.
-- **ketch-registry:** one folder per package with a `ketch.toml`. The only required field is `source = "github:owner/repo"`. Optional fields: `bin`, `provides` and `[asset]` globs (`packages/ketch-registry/README.md:3-20`).
-- A plugin registry for Kerf would need the cox package format (digest, grants), not the ketch format as is.
+- **the package manager** installs binaries straight from GitHub releases and checks their published checksums (`apps/pkgmgr/README.md:6-8`). It fits language servers and debug adapters, not plugin packages.
+- **pkgmgr-registry:** one folder per package with a `the package manager.toml`. The only required field is `source = "github:owner/repo"`. Optional fields: `bin`, `provides` and `[asset]` globs (`packages/pkgmgr-registry/README.md:3-20`).
+- A plugin registry for Kerf would need the coding agent package format (digest, grants), not the package manager format as is.
 
-### Index: `rtok graph`
+### Index: `the token CLI graph`
 
-- It indexes tree-sitter tags (`tree-sitter` 0.25) into SQLite for 13 languages (`apps/rtok/Cargo.toml:54`, `:141-155`).
+- It indexes tree-sitter tags (`tree-sitter` 0.25) into SQLite for 13 languages (`apps/tokcli/Cargo.toml:54`, `:141-155`).
 - It has an optional LSP backend that runs rust-analyzer, clangd or typescript-language-server (`src/plugins/graph/lsp.rs:1-15`).
-- **Correction to the brief:** reference recall is now 0.924 (97/105), not 0.351, as measured on 2026-10-04 (`apps/rtok/research.md:148`, `tests/graph_truth.rs:238-245`).
+- **Correction to the brief:** reference recall is now 0.924 (97/105), not 0.351, as measured on 2026-10-04 (`apps/tokcli/research.md:148`, `tests/graph_truth.rs:238-245`).
   - 0.351 was the 2026-09-04 measurement. `README.md:405` and `docs/comparison.md:228` still quote it.
   - Definitions: 43/44 found, precision 1.000. The remaining misses are inside macro bodies.
   - The labelled set is small and Rust-heavy, so how well this generalises is **unverified**.
@@ -186,7 +186,7 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 
 ### AI
 
-- **`cox acp`:** an Agent Client Protocol server on stdio for editors. cox can also act as an ACP client that drives external agents (`apps/cox/crates/cox/src/acp_cmd.rs:5-10`, `crates/cox-acp/src/lib.rs:6-8`).
+- **`the coding agent acp`:** an Agent Client Protocol server on stdio for editors. the coding agent can also act as an ACP client that drives external agents (`apps/agent/crates/agent/src/acp_cmd.rs:5-10`, `crates/agent-acp/src/lib.rs:6-8`).
 - **runa:** a local LLM runner on llama.cpp with an OpenAI-compatible server (`/v1/chat/completions`, `/v1/messages`, `/v1/embeddings` and others, `apps/runa/crates/runa/src/serve.rs:139-144`).
   - It has no fill-in-the-middle or `/v1/completions` endpoint, so local code completion needs a new endpoint.
 
@@ -203,9 +203,9 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 
 ## 5. Open questions
 
-- **Plugin ABI.** Core modules with JSON over extism (cox, `wasm-plugin-host`) or WIT components (Zed, Lapce via WASI)? Taking cox "as is" means core modules; versioned WIT would be a new contract. Settled by the creator on 2026-10-09: cox's ABI as is.
-- **Licence.** Settled by the creator on 2026-10-09: the same terms as cox (GPL-3.0-or-later or royalty-free, plus commercial), so host code may be taken from cox.
-- **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window: settled in T12 — native hosts over a C ABI, with Kerf's own GPU editor renderer (§7).
+- **Plugin ABI.** Core modules with JSON over extism (the coding agent, `wasm-plugin-host`) or WIT components (Zed, Lapce via WASI)? Taking the coding agent "as is" means core modules; versioned WIT would be a new contract. Settled by the creator on 2026-10-09: the coding agent's ABI as is.
+- **Licence.** Settled by the creator on 2026-10-09: the same terms as the coding agent (GPL-3.0-or-later or royalty-free, plus commercial), so host code may be taken from the coding agent.
+- **UI.** Plugin UI could be the coding agent's `Widget` tree, extended for the IDE, or weft. The window: settled in T12 — native hosts over a C ABI, with Kerf's own GPU editor renderer (§7).
 - **Mobile.** Wasmtime needs a JIT. iOS and Android need an interpreter backend behind the same host API. Settled in T15: wasmtime's Pulley interpreter (§8).
 
 ## 6. Remote development (T13)
@@ -216,12 +216,12 @@ How other editors split the UI from the side that holds the code, and what Kerf'
 | --- | --- | --- | --- | --- |
 | Zed (remote server) | UI, tree-sitter highlighting, language models, unsaved changes | Project files, language servers, tasks, terminals; locally installed extensions are propagated to the server ([docs](https://zed.dev/docs/remote-development)) | Protobuf `Envelope`s, each behind a `u32` length prefix, read with no size cap (`crates/remote/src/protocol.rs`, [zed@20fa2fa8](https://github.com/zed-industries/zed/blob/20fa2fa80949/crates/remote/src/protocol.rs)); one SSH ControlMaster multiplexes the protocol, terminals and tasks ([docs](https://zed.dev/docs/remote-development)) | The server binary must match the client version exactly; Zed re-downloads or uploads it on mismatch ([docs](https://zed.dev/docs/remote-development)) |
 | VS Code (Remote - SSH) | UI and UI extensions (themes, snippets, keymaps) | VS Code Server with workspace extensions, terminals, debugging ([remote extensions](https://code.visualstudio.com/api/advanced-topics/remote-extensions), [Remote - SSH](https://code.visualstudio.com/docs/remote/ssh)) | All traffic through the SSH tunnel ([Remote - SSH](https://code.visualstudio.com/docs/remote/ssh)); commands are the bridge between the two sides, arguments go through `JSON.stringify` ([remote extensions](https://code.visualstudio.com/api/advanced-topics/remote-extensions)) | Server must match the client version exactly ([remote extensions](https://code.visualstudio.com/api/advanced-topics/remote-extensions)) |
-| cox (`cox acp`) | The ACP client (Zed, JetBrains) | The agent: `cox-core` folds `Submission`s into `Event`s; `cox acp` maps that one stream to ACP (`apps/cox/docs/design/protocol.md`, cox@df04e1fe) | ACP: JSON-RPC 2.0 over stdio, one message per line, no embedded newlines ([transports](https://agentclientprotocol.com/protocol/transports)); cox uses the `agent-client-protocol` 2.0 crate (`apps/cox/Cargo.toml`) | `protocolVersion` is one integer, the major; an agent that does not support the client's major answers its latest, and the client should close ([initialization](https://agentclientprotocol.com/protocol/initialization)) |
+| the coding agent (`the coding agent acp`) | The ACP client (Zed, JetBrains) | The agent: `agent-core` folds `Submission`s into `Event`s; `the coding agent acp` maps that one stream to ACP (`apps/agent/docs/design/protocol.md`, the coding agent@df04e1fe) | ACP: JSON-RPC 2.0 over stdio, one message per line, no embedded newlines ([transports](https://agentclientprotocol.com/protocol/transports)); the coding agent uses the `agent-client-protocol` 2.0 crate (`apps/agent/Cargo.toml`) | `protocolVersion` is one integer, the major; an agent that does not support the client's major answers its latest, and the client should close ([initialization](https://agentclientprotocol.com/protocol/initialization)) |
 
 What Kerf takes:
 
 1. **Split.** Zed's: the host owns buffers, the semantic layer, and later the plugin host and language servers; the UI only renders and sends intent. Unlike Zed, Kerf's tree-sitter layer runs on the host, because `kerf-semantic` is the index plugins and inspections query (`docs/architecture.md` §2.1).
-2. **Wire.** ACP's: JSON-RPC 2.0, one JSON object per line, over any byte stream (stdio of `ssh host kerf-host`). Line framing needs no length header to trust, and JSON stays readable in a log. Kerf does not take Zed's protobuf: Kerf's other contracts (cox ABI, inspections) are JSON already.
+2. **Wire.** ACP's: JSON-RPC 2.0, one JSON object per line, over any byte stream (stdio of `ssh host kerf-host`). Line framing needs no length header to trust, and JSON stays readable in a log. Kerf does not take Zed's protobuf: Kerf's other contracts (the coding agent ABI, inspections) are JSON already.
 3. **Versioning.** ACP's integer major plus a minor for additions. Unlike Zed and VS Code, Kerf does not demand an exact build match: a minor bump keeps the connection; an unknown major is refused with a typed error and the connection ends.
 4. **Caps.** Zed reads a length prefix of up to 4 GiB into memory. Kerf caps every line before it is buffered, caps the requests queued per read, and caps replies too.
 
@@ -229,7 +229,7 @@ Crates for the wire (registry API, checked 2026-10-19):
 
 | Crate | Version | Verdict |
 | --- | --- | --- |
-| [`tokio-util`](https://crates.io/crates/tokio-util) `LinesCodec` | 0.7.20 | **Taken** for framing. `new_with_max_length` errors on a longer line, then discards it up to the next newline and goes on ([source](https://github.com/tokio-rs/tokio/blob/tokio-util-0.7.20/tokio-util/src/codec/lines_codec.rs)). Its `Decoder` works on a `BytesMut` without a runtime, so the host stays synchronous. Already in the monorepo (cox). |
+| [`tokio-util`](https://crates.io/crates/tokio-util) `LinesCodec` | 0.7.20 | **Taken** for framing. `new_with_max_length` errors on a longer line, then discards it up to the next newline and goes on ([source](https://github.com/tokio-rs/tokio/blob/tokio-util-0.7.20/tokio-util/src/codec/lines_codec.rs)). Its `Decoder` works on a `BytesMut` without a runtime, so the host stays synchronous. Already in the monorepo (the coding agent). |
 | [`jsonrpsee-types`](https://crates.io/crates/jsonrpsee-types) | 0.26.1 | **Taken** for JSON-RPC 2.0 envelopes (`Request`, `Response`, `ErrorObject`, `Id`). Depends only on `http`, `serde`, `serde_json`, `thiserror`. |
 | [`lsp-server`](https://crates.io/crates/lsp-server) | 0.10.0 | Rejected: `read_msg_text` resizes its buffer to any `Content-Length` and reads header lines without a limit ([source](https://github.com/rust-lang/rust-analyzer/blob/master/lib/lsp-server/src/msg.rs)), so a hostile peer chooses the allocation. |
 | [`jsonrpsee`](https://crates.io/crates/jsonrpsee) | 0.26.1 | Rejected: an async client/server framework on tokio; the host needs only envelopes. |
@@ -299,7 +299,7 @@ Checked on 2026-10-20 against slint-bindings `9c1b353e114c83d5cb03cb61d504a166ed
 
 **The dependency.**
 
-- `slint-bindings-core` is not on crates.io: the workspace sets `publish = false` and `license = "Apache-2.0"` ([`Cargo.toml`](https://github.com/pyrlyn/slint-bindings/blob/9c1b353e114c83d5cb03cb61d504a166ed49efa1/Cargo.toml)). Kerf takes it as a Cargo git dependency pinned by `rev`, like `wasm-plugin-host` and `cox-plugin-api`.
+- `slint-bindings-core` is not on crates.io: the workspace sets `publish = false` and `license = "Apache-2.0"` ([`Cargo.toml`](https://github.com/pyrlyn/slint-bindings/blob/9c1b353e114c83d5cb03cb61d504a166ed49efa1/Cargo.toml)). Kerf takes it as a Cargo git dependency pinned by `rev`, like `wasm-plugin-host` and `agent-plugin-api`.
 - It path-depends on two crates inside the same repository: `slint-embed` (`flutter/packages/slint/rust/embed`) and `slint-dart-interpreter` (`flutter/packages/slint_build/interpreter`, which inherits its versions from `flutter/Cargo.toml`). Cargo finds both in the git checkout: `cargo metadata` (cargo 1.99.0) on a probe crate and on this workspace resolved all three to `git+https://github.com/pyrlyn/slint-bindings?rev=9c1b353…`. Cargo's rule for this: a git dependency's packages are searched for in the whole repository ([The Cargo Book, "Specifying dependencies from git repositories"](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories), checked 2026-10-20). Both crates are Apache-2.0 (`flutter/packages/slint/LICENSE`, `flutter/packages/slint_build/LICENSE` at that commit).
 - Exact pins it forces ([`Cargo.toml`](https://github.com/pyrlyn/slint-bindings/blob/9c1b353e114c83d5cb03cb61d504a166ed49efa1/Cargo.toml) lines 23–33): `slint = "=1.18.1"` (`default-features = false`, `std`, `compat-1-18`, `renderer-software`), `slint-interpreter = "=1.18.1"`, `i-slint-core = "=1.18.1"` (`image-decoders`, `svg`). Kerf therefore pins `slint` and `slint-build` to `=1.18.1` too; a Slint upgrade means moving the `rev` first.
 - On macOS and Windows it also turns on `slint`'s `renderer-femtovg-wgpu` and `unstable-wgpu-30` and adds `pollster = "0.4.0"` ([`crates/slint-bindings-core/Cargo.toml`](https://github.com/pyrlyn/slint-bindings/blob/9c1b353e114c83d5cb03cb61d504a166ed49efa1/crates/slint-bindings-core/Cargo.toml)). So `wgpu 30.0.1` stays in Kerf's macOS and Windows dependency tree through `slint-bindings-core` even after T16.3 drops Kerf's own `wgpu`, `glyphon` and `pollster`; `slint-interpreter` and the Slint compiler are in every build for the same reason.
@@ -313,7 +313,7 @@ Checked on 2026-10-20 against slint-bindings `9c1b353e114c83d5cb03cb61d504a166ed
 
 ## 8. Mobile plugin backend (T15)
 
-Checked on 2026-10-20. Kerf's plugins are extism modules (cox's ABI, §4) loaded by `wasm-plugin-host`. On iOS an app cannot map writable and executable memory: the entitlement that allows `MAP_JIT` lists macOS only (https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.cs.allow-jit, platforms: macOS 10.7+). So wasmtime's Cranelift output cannot run there, and the backend has to interpret.
+Checked on 2026-10-20. Kerf's plugins are extism modules (the coding agent's ABI, §4) loaded by `wasm-plugin-host`. On iOS an app cannot map writable and executable memory: the entitlement that allows `MAP_JIT` lists macOS only (https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.cs.allow-jit, platforms: macOS 10.7+). So wasmtime's Cranelift output cannot run there, and the backend has to interpret.
 
 ### Candidates
 

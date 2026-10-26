@@ -3,17 +3,17 @@
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
 //! Language-server and debug-adapter binaries, pinned to a release asset and
-//! its SHA-256, installed from GitHub releases through ketch.
+//! its SHA-256, installed from GitHub releases through the package manager.
 //!
-//! Kerf drives the `ketch` command line rather than linking `ketch-core`: that
+//! Kerf drives the package manager command line rather than linking `pkgmgr-core`: that
 //! crate is unpublished, pulls SQLite, an async GitHub client and signature
 //! stacks into the IDE, and is GPL-only, which would take the royalty-free
 //! licence option away from every Kerf build. A separate process keeps both.
 //!
-//! [`Installer::install`] writes a one-entry `ketch.lock` for the host and runs
-//! `ketch sync` on it, in a ketch root that belongs to Kerf alone. ketch then
+//! [`Installer::install`] writes a one-entry `the package manager.lock` for the host and runs
+//! `the package manager sync` on it, in a package manager root that belongs to Kerf alone. the package manager then
 //! refuses an asset whose digest differs before unpacking it, and refuses a
-//! download over the size cap. ketch does not cap what an archive unpacks to,
+//! download over the size cap. The package manager does not cap what an archive unpacks to,
 //! so Kerf measures the installed tree afterwards and uninstalls it when it is
 //! over [`Limits::max_installed_bytes`]. [`Installer::resolve`] returns the
 //! path the core spawns.
@@ -33,14 +33,14 @@ use std::process::{Command, Stdio};
 pub use error::Error;
 pub use spec::{BinarySpec, Pin, host_target};
 
-/// How much of ketch's error output is kept for [`Error::Ketch`]; the rest is
+/// How much of the package manager's error output is kept for [`Error::the package manager`]; the rest is
 /// drained and dropped so a chatty failure cannot grow Kerf's memory.
 const MAX_STDERR: u64 = 16 * 1024;
 
 /// Size caps for what a release may bring onto disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
-    /// The largest asset ketch may download, in MiB; ketch enforces it.
+    /// The largest asset the package manager may download, in MiB; the package manager enforces it.
     pub max_download_mib: u64,
     /// The largest installed tree Kerf keeps, in bytes; Kerf enforces it.
     pub max_installed_bytes: u64,
@@ -57,7 +57,7 @@ impl Default for Limits {
     }
 }
 
-/// Installs and resolves pinned binaries in one ketch root.
+/// Installs and resolves pinned binaries in one the package manager root.
 #[derive(Debug, Clone)]
 pub struct Installer {
     program: PathBuf,
@@ -67,8 +67,8 @@ pub struct Installer {
 }
 
 impl Installer {
-    /// An installer that runs `program` (a path, or `ketch` to search `PATH`)
-    /// against the ketch root `root`. The root should be Kerf's alone: ketch
+    /// An installer that runs `program` (a path, or the package manager to search `PATH`)
+    /// against the package manager root `root`. The root should be Kerf's alone: the package manager
     /// links everything it installs there into `root/bin`.
     pub fn new(program: impl Into<PathBuf>, root: impl Into<PathBuf>) -> Self {
         Installer {
@@ -85,23 +85,23 @@ impl Installer {
         self
     }
 
-    /// Points ketch at another GitHub API base (GitHub Enterprise, or a local
-    /// stand-in in tests) through `KETCH_GITHUB_API`.
+    /// Points the package manager at another GitHub API base (GitHub Enterprise, or a local
+    /// stand-in in tests) through `PKGMGR_GITHUB_API`.
     pub fn with_github_api(mut self, base: impl Into<String>) -> Self {
         self.github_api = Some(base.into());
         self
     }
 
-    /// The ketch root this installer works in.
+    /// The package manager root this installer works in.
     pub fn root(&self) -> &Path {
         &self.root
     }
 
     /// Installs `spec` at its pinned tag and returns the binary's path.
     ///
-    /// Already installed at that tag, ketch does nothing and this only
+    /// Already installed at that tag, the package manager does nothing and this only
     /// resolves. A digest mismatch or an oversize download leaves nothing
-    /// installed and returns [`Error::Ketch`].
+    /// installed and returns [`Error::the package manager`].
     pub fn install(&self, spec: &BinarySpec) -> Result<PathBuf, Error> {
         let pin = spec.validate()?;
         let locks = self.root.join("kerf-locks");
@@ -130,7 +130,7 @@ impl Installer {
 
     /// The installed binary for `spec`, for the core to spawn.
     ///
-    /// The link ketch made in `root/bin` is followed and must land inside the
+    /// The link the package manager made in `root/bin` is followed and must land inside the
     /// root, so a planted link cannot point the core at an arbitrary program.
     pub fn resolve(&self, spec: &BinarySpec) -> Result<PathBuf, Error> {
         spec.validate()?;
@@ -185,12 +185,12 @@ impl Installer {
         Ok(total)
     }
 
-    /// Runs ketch in Kerf's root with settings Kerf owns, and turns a failure
-    /// into [`Error::Ketch`] with the head of its error output.
+    /// Runs the package manager in Kerf's root with settings Kerf owns, and turns a failure
+    /// into [`Error::the package manager`] with the head of its error output.
     fn ketch(&self, args: &[OsString]) -> Result<(), Error> {
         let mut cmd = Command::new(&self.program);
-        // The user's own ketch settings must not loosen Kerf's: drop every
-        // inherited KETCH_* and set the ones that matter here.
+        // The user's own the package manager settings must not loosen Kerf's: drop every
+        // inherited PKGMGR_* and set the ones that matter here.
         for (key, _) in std::env::vars_os() {
             if key.to_string_lossy().starts_with("KETCH_") {
                 cmd.env_remove(&key);
@@ -225,7 +225,7 @@ impl Installer {
                 .take(MAX_STDERR)
                 .read_to_end(&mut stderr)
                 .map_err(spawn)?;
-            // Drain the rest so ketch never blocks on a full pipe.
+            // Drain the rest so the package manager never blocks on a full pipe.
             io::copy(&mut pipe, &mut io::sink()).map_err(spawn)?;
         }
         let status = child.wait().map_err(spawn)?;
@@ -239,7 +239,7 @@ impl Installer {
     }
 }
 
-/// ketch's output repeats release and asset names, which are untrusted; keep
+/// The package manager's output repeats release and asset names, which are untrusted; keep
 /// it to text that cannot drive a terminal.
 fn printable(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes)

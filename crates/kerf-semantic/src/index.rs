@@ -16,7 +16,7 @@ use crate::{Error, MAX_SYMBOLS_PER_FILE};
 /// Patterns the upstream Rust tags query misses: path-qualified and turbofish
 /// calls (`Self::new()`, `mem::take::<T>()`), calls inside macro arguments,
 /// the type in `impl Trait for Type`, trait method signatures, enum variants,
-/// `const` and `static`. The scoped-call pattern comes from rtok's
+/// `const` and `static`. The scoped-call pattern comes from the token CLI's
 /// `RUST_SCOPED_CALL`, which found the same gap.
 ///
 /// Macro arguments are bare token trees, so a call there is only "a name

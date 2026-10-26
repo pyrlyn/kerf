@@ -3,7 +3,7 @@
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
 //! What a pinned binary is, and the checks that make an untrusted one safe to
-//! hand to ketch.
+//! hand to the package manager.
 //!
 //! A spec arrives from a plugin manifest, so every field is checked here before
 //! it reaches a file name, a lockfile or a command line.
@@ -33,21 +33,21 @@ pub struct Pin {
 /// A language-server or debug-adapter binary pinned to one release.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinarySpec {
-    /// Name ketch installs the package under; also its directory in the store.
+    /// Name the package manager installs the package under; also its directory in the store.
     pub name: String,
     /// GitHub `owner/repo` the release belongs to.
     pub repo: String,
     /// Exact release tag, e.g. `v1.2.3`.
     pub tag: String,
-    /// Binary ketch links for the package, without a Windows `.exe` suffix.
+    /// Binary the package manager links for the package, without a Windows `.exe` suffix.
     pub bin: String,
-    /// Asset and digest per ketch target key (`macos-aarch64`, `linux-x86_64`,
+    /// Asset and digest per the package manager target key (`macos-aarch64`, `linux-x86_64`,
     /// `windows-x86_64`).
     pub targets: BTreeMap<String, Pin>,
 }
 
 impl BinarySpec {
-    /// Checks every field and returns the pin for the host, the only one ketch
+    /// Checks every field and returns the pin for the host, the only one the package manager
     /// will hold to the recorded digest.
     pub fn validate(&self) -> Result<&Pin, Error> {
         check_name("name", &self.name)?;
@@ -66,8 +66,8 @@ impl BinarySpec {
     }
 }
 
-/// The host as ketch names targets: `<os>-<arch>`, from the same `std` values
-/// ketch itself reads.
+/// The host as the package manager names targets: `<os>-<arch>`, from the same `std` values
+/// The package manager itself reads.
 pub fn host_target() -> String {
     format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
 }
@@ -76,7 +76,7 @@ fn invalid(field: &str, why: &str) -> Error {
     Error::InvalidSpec(format!("{field}: {why}"))
 }
 
-/// One path component, usable verbatim: ketch refuses a lockfile name it would
+/// One path component, usable verbatim: the package manager refuses a lockfile name it would
 /// have to rewrite, and Kerf joins `bin` onto the bin directory.
 fn check_name(field: &str, value: &str) -> Result<(), Error> {
     if value.is_empty() || value.len() > MAX_NAME {
@@ -118,7 +118,7 @@ fn check_repo(value: &str) -> Result<(), Error> {
 }
 
 /// Printable ASCII without spaces: the tag goes into a URL and into the
-/// messages ketch prints.
+/// messages the package manager prints.
 fn check_tag(value: &str) -> Result<(), Error> {
     if value.is_empty() || value.len() > MAX_TAG {
         return Err(invalid("tag", "must be 1 to 128 bytes"));
@@ -129,7 +129,7 @@ fn check_tag(value: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// Only the three targets Kerf ships on; ketch turns an unknown key into a
+/// Only the three targets Kerf ships on; the package manager turns an unknown key into a
 /// cross-target entry that no longer holds the download to its digest.
 fn check_target(value: &str) -> Result<(), Error> {
     match value {
@@ -160,7 +160,7 @@ fn check_asset(value: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// Lowercase only, so the digest Kerf writes compares equal to the one ketch
+/// Lowercase only, so the digest Kerf writes compares equal to the one the package manager
 /// computes without either side normalising.
 fn check_sha256(value: &str) -> Result<(), Error> {
     if value.len() != 64

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! Kerf's WASM plugin host. Plugins are cox plugins as is: a `plugin.toml`
-//! that `cox_plugin_api::PluginManifest` describes, and a core WASM module
-//! called with JSON through extism (`cox:host/v1`). The engine — a worker
+//! Kerf's WASM plugin host. Plugins are the coding agent plugins as is: a `plugin.toml`
+//! that `agent_plugin_api::PluginManifest` describes, and a core WASM module
+//! called with JSON through extism (`the coding agent:host/v1`). The engine — a worker
 //! thread per plugin, bounded lanes, deadlines, the memory cap, the package
 //! layout — is the shared `wasm-plugin-host` crate; this crate is the Kerf
 //! wiring around it (`docs/architecture.md` §3).
@@ -15,7 +15,7 @@
 //! - A [`Gate`] decides whether a plugin may load; [`default_gate`] keeps
 //!   project plugins out. Workspace Trust and the plugin lockfile plug in
 //!   here.
-//! - A failed load or `cox_init` disables the plugin; so do [`MAX_STRIKES`]
+//! - A failed load or `agent_init` disables the plugin; so do [`MAX_STRIKES`]
 //!   failed calls in a row. The host and every other plugin keep running.
 //!
 //! ```no_run
@@ -32,7 +32,7 @@
 //!     }
 //! }
 //! let answer: Option<serde_json::Value> = plugins
-//!     .call("rust-tools", Lane::Control, "cox_command", &serde_json::json!({}))
+//!     .call("rust-tools", Lane::Control, "agent_command", &serde_json::json!({}))
 //!     .unwrap_or_default();
 //! ```
 

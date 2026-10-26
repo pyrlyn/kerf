@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-//! The inspection export's JSON payloads, in the style of cox's ABI v1
-//! (`cox-plugin-api` `abi.rs`): the input carries the ABI major as `api`, and
+//! The inspection export's JSON payloads, in the style of the coding agent's ABI v1
+//! (`agent-plugin-api` `abi.rs`): the input carries the ABI major as `api`, and
 //! no type denies unknown fields, so a minor addition (a new optional field)
 //! keeps `api = 1` because an older peer ignores what it does not know
 //! (`docs/architecture.md` §7).

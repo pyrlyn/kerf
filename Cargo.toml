@@ -37,17 +37,17 @@ fs-kit = "0.1.0"
 dirs = "7.0.0"
 # The trust file and the plugin lockfile are TOML read into typed structs
 # (rust.md: Config files); Kerf writes the whole lockfile, so no comment-preserving edits.
-# `kerf-binaries` also renders the ketch lockfile it hands to `ketch sync`.
+# `kerf-binaries` also renders the package manager lockfile it hands to `the package manager sync`.
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.8"
 # JSON Schema of the trust file and the plugin lockfile, generated in tests only (dev).
 schemars = "1.2.3"
 # Test-only: the shared stale-schema check from `packages/` (pyrlyn/crates).
 config-schema = "0.1.0"
-# JSON: plugin export payloads in `kerf-inspect` (the encoding cox's ABI uses
+# JSON: plugin export payloads in `kerf-inspect` (the encoding the coding agent's ABI uses
 # through extism, `docs/architecture.md` §3), LSP messages in `kerf-lsp` and
 # the scripted server's answer files; also writes the trust schema.
-# `preserve_order` on for every crate: `cox-plugin-api` turns it on by feature
+# `preserve_order` on for every crate: `agent-plugin-api` turns it on by feature
 # unification, and schemars' key order follows it, so without it here a
 # committed schema would read stale or current depending on which crates a
 # build selects.
@@ -80,13 +80,13 @@ ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 httpmock = "0.8.3"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
-# The extism plugin engine shared with cox and scull (worker thread, lanes,
+# The extism plugin engine shared with the coding agent and scull (worker thread, lanes,
 # deadlines, memory cap, package layout). A git pin, not a registry version:
 # it is not on crates.io, where the name `wasm_plugin_host` already belongs to
 # an unrelated crate. Its `pulley` feature (T15) runs plugins on wasmtime's
 # interpreter for iOS and Android.
 wasm-plugin-host = { git = "https://github.com/pyrlyn/crates", rev = "8ebbef6038ce32cdc22ef61803c4e567a4ea7289" }
-# cox's plugin contract: `PluginManifest` and the ABI payloads (`InitIn`,
+# The coding agent's plugin contract: `PluginManifest` and the ABI payloads (`InitIn`,
 # `InitOut`). Kerf takes the contract as is; not on crates.io, so a git pin.
 cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac85bf24ce1114d5082e59d172e" }
 # The index the inspection runner (`kerf-inspect`) hands to plugins, and the
