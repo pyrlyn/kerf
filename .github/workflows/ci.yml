@@ -39,7 +39,11 @@ jobs:
     permissions:
       contents: read
       actions: write
+    secrets:
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
     with:
+      sccache: true # R2 compiler cache, see pyrlyn/ci docs/sccache.md
       # ketch alongside Rust: the `kerf-binaries` tests run the real binary.
       mise-install-args: rust github:pyrlyn/ketch
       # `kerf-slint`'s text stack finds fonts through fontconfig on Linux, and
