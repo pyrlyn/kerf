@@ -106,5 +106,9 @@ jobs:
         run: xcrun swift-format lint --strict -r Sources Tests Package.swift
       - name: Build
         run: swift build --arch arm64
-      - name: Test
+      - name: tests skipped (SKIP_CI_TESTS)
+        if: vars.SKIP_CI_TESTS == 'true' || env.SKIP_CI_TESTS == 'true'
+        run: echo "::notice title=SKIP_CI_TESTS::tests skipped by SKIP_CI_TESTS"
+      - if: vars.SKIP_CI_TESTS != 'true' && env.SKIP_CI_TESTS != 'true'
+        name: Test
         run: swift test --arch arm64
