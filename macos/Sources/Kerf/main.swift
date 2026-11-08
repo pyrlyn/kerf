@@ -3,10 +3,12 @@
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
 // Kerf for macOS: an AppKit window per file around Kerf's editor view.
-// `swift run Kerf <file>` opens a file; File > Open picks one.
+// `swift run Kerf <file>` opens a file; File > Open picks one;
+// `swift run Kerf --ui-kit` shows the UI Kit gallery.
 
 import AppKit
 import KerfKit
+import KerfUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -14,7 +16,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApp.mainMenu = mainMenu()
-    open(CommandLine.arguments.dropFirst().first.map { URL(fileURLWithPath: $0) })
+    let arguments = CommandLine.arguments.dropFirst()
+    if arguments.first == "--ui-kit" {
+      let gallery = KerfGallery.makeWindow()
+      gallery.center()
+      gallery.makeKeyAndOrderFront(nil)
+      windows.append(gallery)
+    } else {
+      open(arguments.first.map { URL(fileURLWithPath: $0) })
+    }
     NSApp.activate()
   }
 
