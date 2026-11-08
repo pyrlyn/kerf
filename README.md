@@ -8,7 +8,7 @@ Status: research only. The Cargo workspace is set up but has no crates yet.
 
 - [research.md](research.md) — how Zed, VS Code, IntelliJ, Visual Studio, Lapce, Neovim, Lite XL, Pragtical, Zellij and others work, and what Kerf takes from each.
 - [ideas.md](ideas.md) — candidate tasks.
-- [plan.md](plan.md) — active tasks.
+- [plan/](plan/README.md) — tasks, one folder per task.
 - [roadmap.md](roadmap.md) — approved later work.
 - [docs/](docs/README.md) — documentation index.
 

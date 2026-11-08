@@ -241,7 +241,7 @@ Checked on 2026-10-19. Repository facts are at slint-bindings `4d61045` (which v
 
 ### Direction (the creator, 2026-10-20): Slint for the editor
 
-The creator changed the editor surface on 2026-10-20: the code editor is a **Slint** component embedded in the native host through **slint-bindings** (`EmbeddedHost<C: ComponentHandle>` in `slint-bindings-core`, `crates/slint-bindings-core/src/host.rs` at slint-bindings `9c1b353`), not Kerf's own GPU renderer. The native window, menus, input and the "Look" rules below stay. The GPU renderer (`kerf-render`) is removed once the Slint surface replaces it (plan.md T16). The "Editor renderer" and "Licence" subsections below record the 2026-10-19 choice that this replaces; the dependency and licence facts for Slint are in "Slint dependency and licence (T16.1)" at the end of this section.
+The creator changed the editor surface on 2026-10-20: the code editor is a **Slint** component embedded in the native host through **slint-bindings** (`EmbeddedHost<C: ComponentHandle>` in `slint-bindings-core`, `crates/slint-bindings-core/src/host.rs` at slint-bindings `9c1b353`), not Kerf's own GPU renderer. The native window, menus, input and the "Look" rules below stay. The GPU renderer (`kerf-render`) is removed once the Slint surface replaces it (`plan/T16`). The "Editor renderer" and "Licence" subsections below record the 2026-10-19 choice that this replaces; the dependency and licence facts for Slint are in "Slint dependency and licence (T16.1)" at the end of this section.
 
 slint-bindings renders on the CPU into a host-owned RGBA buffer and calls itself an "M1 spike" (`README.md` at `9c1b353`); its GPU path is its own milestone M3 (`plan.md` at `9c1b353`).
 
