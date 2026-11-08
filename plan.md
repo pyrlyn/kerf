@@ -10,11 +10,11 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T15 | todo | P3 | 5 | 0% | |
 | T17.2 | in progress | P1 | 4 | 60% | Claude / opus-5.5 |
 | T17.3 | in progress | P1 | 2 | 60% | Claude / opus-5.5 |
-| T18.1 | in progress | P1 | 3 | 0% | Claude / opus-5.5 |
-| T18.2 | in progress | P1 | 3 | 0% | Claude / opus-5.5 |
-| T18.3 | in progress | P1 | 4 | 0% | Claude / opus-5.5 |
-| T18.4 | in progress | P1 | 3 | 0% | Claude / opus-5.5 |
-| T18.5 | in progress | P1 | 4 | 0% | Claude / opus-5.5 |
+| T18.1 | in progress | P1 | 3 | 90% | Claude / opus-5.5 |
+| T18.2 | in progress | P1 | 3 | 90% | Claude / opus-5.5 |
+| T18.3 | in progress | P1 | 4 | 90% | Claude / opus-5.5 |
+| T18.4 | in progress | P1 | 3 | 90% | Claude / opus-5.5 |
+| T18.5 | in progress | P1 | 4 | 90% | Claude / opus-5.5 |
 
 
 ### T18. Shared screen logic for every host
