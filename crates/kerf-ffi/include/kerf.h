@@ -57,6 +57,61 @@
 #define KERF_COMMAND_SELECT_RIGHT 6
 
 /**
+ * The plugin's id.
+ */
+#define KERF_PLUGIN_TEXT_ID 0
+
+/**
+ * The manifest's display name.
+ */
+#define KERF_PLUGIN_TEXT_NAME 1
+
+/**
+ * The manifest version.
+ */
+#define KERF_PLUGIN_TEXT_VERSION 2
+
+/**
+ * The package digest, 64 hex characters.
+ */
+#define KERF_PLUGIN_TEXT_DIGEST 3
+
+/**
+ * Why it is invalid or does not match the lockfile; empty otherwise.
+ */
+#define KERF_PLUGIN_TEXT_REASON 4
+
+/**
+ * The version `kerf-plugins.lock` pins; empty when not pinned.
+ */
+#define KERF_PLUGIN_TEXT_LOCK_VERSION 5
+
+/**
+ * The digest `kerf-plugins.lock` pins; empty when not pinned.
+ */
+#define KERF_PLUGIN_TEXT_LOCK_DIGEST 6
+
+/**
+ * Grant line `item` of `KerfPluginRow.lines`, as the prompt shows it.
+ */
+#define KERF_PLUGIN_TEXT_LINE 7
+
+/**
+ * Line `item` of `KerfPluginRow.added`: asked for and not granted.
+ */
+#define KERF_PLUGIN_TEXT_ADDED 8
+
+/**
+ * Line `item` of `KerfPluginRow.removed`: granted, no longer asked for.
+ */
+#define KERF_PLUGIN_TEXT_REMOVED 9
+
+/**
+ * Export `item` of `KerfPluginRow.disabled_exports`.
+ */
+#define KERF_PLUGIN_TEXT_DISABLED_EXPORT 10
+
+/**
  * What a call did. Every function returns one; out-parameters are written
  * only on `KERF_STATUS_OK`.
  */
@@ -109,14 +164,88 @@ typedef enum KerfStatus {
 } KerfStatus;
 
 /**
+ * Where a plugin stands.
+ */
+typedef enum KerfPluginState {
+  /**
+   * Granted for these bytes; it loads.
+   */
+  KERF_PLUGIN_STATE_ENABLED = 0,
+  /**
+   * Enabled, but some exports failed three times in a row and stay off
+   * for the session.
+   */
+  KERF_PLUGIN_STATE_EXPORTS_DISABLED = 1,
+  /**
+   * Not granted for these bytes, or it asks for more: show the prompt.
+   */
+  KERF_PLUGIN_STATE_NEEDS_APPROVAL = 2,
+  /**
+   * A project plugin not enabled for this repository: show the prompt.
+   */
+  KERF_PLUGIN_STATE_PROJECT_NOT_ENABLED = 3,
+  /**
+   * Does not match `kerf-plugins.lock`; off until reviewed.
+   */
+  KERF_PLUGIN_STATE_LOCK_MISMATCH = 4,
+  /**
+   * The manifest was refused; nothing enables it.
+   */
+  KERF_PLUGIN_STATE_INVALID = 5,
+} KerfPluginState;
+
+/**
  * An editor: one buffer and its cursor. Opaque to the host.
  */
 typedef struct KerfEditor KerfEditor;
 
 /**
+ * The plugins of one session. Opaque to the host.
+ */
+typedef struct KerfPlugins KerfPlugins;
+
+/**
  * A view the editor is drawn into. Opaque to the host.
  */
 typedef struct KerfView KerfView;
+
+/**
+ * One plugin's numbers; its texts come from `kerf_plugins_copy_text`.
+ */
+typedef struct KerfPluginRow {
+  /**
+   * Where it stands.
+   */
+  enum KerfPluginState state;
+  /**
+   * Non-zero for a project plugin, zero for a user plugin.
+   */
+  uint8_t project;
+  /**
+   * Non-zero when `kerf-plugins.lock` pins this id.
+   */
+  uint8_t locked;
+  /**
+   * The linear memory cap it runs under, in MiB.
+   */
+  uint32_t memory_mib;
+  /**
+   * Grant lines it asks for (`KERF_PLUGIN_TEXT_LINE`).
+   */
+  size_t lines;
+  /**
+   * Lines the prompt asks for anew (`KERF_PLUGIN_TEXT_ADDED`).
+   */
+  size_t added;
+  /**
+   * Lines granted and no longer asked for (`KERF_PLUGIN_TEXT_REMOVED`).
+   */
+  size_t removed;
+  /**
+   * Exports off for the session (`KERF_PLUGIN_TEXT_DISABLED_EXPORT`).
+   */
+  size_t disabled_exports;
+} KerfPluginRow;
 
 /**
  * The editor's look, in logical points (`kerf_slint::Theme`). Colours are
@@ -288,6 +417,137 @@ enum KerfStatus kerf_editor_copy_text(struct KerfEditor *ed,
                                       uint8_t *buf,
                                       size_t cap,
                                       size_t *out_len);
+
+/**
+ * Discover the plugins under `home` (Kerf's home, UTF-8) and the project at
+ * `project` (UTF-8; `project_len` 0 for none), read the project's
+ * `kerf-plugins.lock`, and put a new handle in `*out`. Nothing is granted
+ * yet. Free it with `kerf_plugins_free`.
+ *
+ * # Safety
+ *
+ * `home` points to `home_len` readable bytes, `project` to `project_len`;
+ * `out` is valid for a write of one pointer.
+ */
+enum KerfStatus kerf_plugins_open(const uint8_t *home,
+                                  size_t home_len,
+                                  const uint8_t *project,
+                                  size_t project_len,
+                                  struct KerfPlugins **out);
+
+/**
+ * Free a handle. Null is ignored.
+ *
+ * # Safety
+ *
+ * `p` is null or a live handle not used again after this call.
+ */
+void kerf_plugins_free(struct KerfPlugins *p);
+
+/**
+ * Read the plugin folders and the lockfile again, after an install, an
+ * update or a lockfile change. Grants and this session's failures stay;
+ * row indices may change.
+ *
+ * # Safety
+ *
+ * `p` is a live handle.
+ */
+enum KerfStatus kerf_plugins_rescan(struct KerfPlugins *p);
+
+/**
+ * The number of plugins, rows `0..count` sorted by id.
+ *
+ * # Safety
+ *
+ * `p` is a live handle; `out` is valid for a write.
+ */
+enum KerfStatus kerf_plugins_count(struct KerfPlugins *p, size_t *out);
+
+/**
+ * Row `index` in `*out`; `KERF_STATUS_OUT_OF_RANGE` past the last.
+ *
+ * # Safety
+ *
+ * `p` is a live handle; `out` is valid for a write.
+ */
+enum KerfStatus kerf_plugins_row(struct KerfPlugins *p, size_t index, struct KerfPluginRow *out);
+
+/**
+ * Copy text `field` (a `KERF_PLUGIN_TEXT_*`) of row `index` as UTF-8 into
+ * `buf` (`cap` bytes, no NUL written) and its length into `*out_len`; `item`
+ * picks the entry of a list field and is ignored otherwise. When `cap` is
+ * too small, nothing is copied, `*out_len` still gets the length needed and
+ * the status is `KERF_STATUS_TOO_LARGE`; a null `buf` with `cap` 0 asks for
+ * the length. Plugin-written text arrives with control and direction
+ * characters escaped.
+ *
+ * # Safety
+ *
+ * `p` is a live handle; `buf` is null or valid for `cap` bytes of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_plugins_copy_text(struct KerfPlugins *p,
+                                       size_t index,
+                                       uint32_t field,
+                                       size_t item,
+                                       uint8_t *buf,
+                                       size_t cap,
+                                       size_t *out_len);
+
+/**
+ * Answer the permission prompt for row `index`: non-zero `allow` grants
+ * every line for `digest` (the `KERF_PLUGIN_TEXT_DIGEST` the prompt showed),
+ * zero grants nothing. `KERF_STATUS_UNSUPPORTED`, and nothing granted, when
+ * the row is invalid or does not match the lockfile, or its digest is no
+ * longer `digest`: read the row again and show the prompt anew.
+ *
+ * # Safety
+ *
+ * `p` is a live handle; `digest` points to `digest_len` readable bytes.
+ */
+enum KerfStatus kerf_plugins_decide(struct KerfPlugins *p,
+                                    size_t index,
+                                    const uint8_t *digest,
+                                    size_t digest_len,
+                                    uint8_t allow);
+
+/**
+ * Turn row `index` off: its grant is cleared, so it asks before it loads
+ * again.
+ *
+ * # Safety
+ *
+ * `p` is a live handle.
+ */
+enum KerfStatus kerf_plugins_revoke(struct KerfPlugins *p, size_t index);
+
+/**
+ * The user reviewed row `index`'s lockfile mismatch and accepts these
+ * bytes: pin its version and digest in the project's `kerf-plugins.lock`.
+ * The grant is still checked, so new bytes then ask for permission.
+ * `KERF_STATUS_IO` when the lockfile cannot be read or written.
+ *
+ * # Safety
+ *
+ * `p` is a live handle.
+ */
+enum KerfStatus kerf_plugins_accept_lock(struct KerfPlugins *p, size_t index);
+
+/**
+ * Record a call to `export` (UTF-8) of row `index`: non-zero `ok` for a
+ * success. The third failure in a row turns that export off for the
+ * session.
+ *
+ * # Safety
+ *
+ * `p` is a live handle; `export` points to `export_len` readable bytes.
+ */
+enum KerfStatus kerf_plugins_record_call(struct KerfPlugins *p,
+                                         size_t index,
+                                         const uint8_t *export_,
+                                         size_t export_len,
+                                         uint8_t ok);
 
 /**
  * A view of `width`×`height` physical pixels at `scale` pixels per point

@@ -3301,6 +3301,7 @@ version = "0.0.0"
 dependencies = [
  "cbindgen",
  "kerf-core",
+ "kerf-plugin-manager",
  "kerf-slint",
  "tempfile",
 ]
