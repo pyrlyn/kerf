@@ -57,6 +57,36 @@
 #define KERF_COMMAND_SELECT_RIGHT 6
 
 /**
+ * Open a collapsed folder, listing it the first time.
+ */
+#define KERF_NAVIGATOR_EXPAND 0
+
+/**
+ * Close an expanded folder; a selection inside moves to it.
+ */
+#define KERF_NAVIGATOR_COLLAPSE 1
+
+/**
+ * Select the row.
+ */
+#define KERF_NAVIGATOR_SELECT 2
+
+/**
+ * A row's file name, or a hit's label (symbol name or relative path).
+ */
+#define KERF_NAVIGATOR_TEXT_NAME 0
+
+/**
+ * The path relative to the project root.
+ */
+#define KERF_NAVIGATOR_TEXT_PATH 1
+
+/**
+ * A symbol hit's kind (`function`, `class`, …); empty otherwise.
+ */
+#define KERF_NAVIGATOR_TEXT_DETAIL 2
+
+/**
  * The plugin's id.
  */
 #define KERF_PLUGIN_TEXT_ID 0
@@ -112,6 +142,41 @@
 #define KERF_PLUGIN_TEXT_DISABLED_EXPORT 10
 
 /**
+ * Bytes of UTF-8 a [`KerfTerminalCell`] holds; a longer grapheme is cut.
+ */
+#define KERF_TERMINAL_CELL_TEXT_BYTES 24
+
+/**
+ * `kerf_terminal_copy_text`: the tab title.
+ */
+#define KERF_TERMINAL_TEXT_TITLE 0
+
+/**
+ * `kerf_terminal_copy_text`: the opening plugin's id, empty for the user.
+ */
+#define KERF_TERMINAL_TEXT_ORIGIN 1
+
+/**
+ * `kerf_terminal_copy_text`: the screen as plain text, rows joined by `\n`.
+ */
+#define KERF_TERMINAL_TEXT_SCREEN 2
+
+/**
+ * `KerfTerminalColor::kind`: the theme's default colour.
+ */
+#define KERF_TERMINAL_COLOR_DEFAULT 0
+
+/**
+ * `KerfTerminalColor::kind`: palette entry `index`.
+ */
+#define KERF_TERMINAL_COLOR_INDEXED 1
+
+/**
+ * `KerfTerminalColor::kind`: the 24-bit colour in `rgb`.
+ */
+#define KERF_TERMINAL_COLOR_RGB 2
+
+/**
  * What a call did. Every function returns one; out-parameters are written
  * only on `KERF_STATUS_OK`.
  */
@@ -161,6 +226,14 @@ typedef enum KerfStatus {
    * Slint is single-threaded.
    */
   KERF_STATUS_WRONG_THREAD = 10,
+  /**
+   * The folder is not trusted; no process was started.
+   */
+  KERF_STATUS_UNTRUSTED = 11,
+  /**
+   * No such id, such as a closed terminal tab.
+   */
+  KERF_STATUS_NOT_FOUND = 12,
 } KerfStatus;
 
 /**
@@ -200,14 +273,91 @@ typedef enum KerfPluginState {
 typedef struct KerfEditor KerfEditor;
 
 /**
+ * A project's navigator and Open Quickly. Opaque to the host.
+ */
+typedef struct KerfNavigator KerfNavigator;
+
+/**
  * The plugins of one session. Opaque to the host.
  */
 typedef struct KerfPlugins KerfPlugins;
 
 /**
+ * The open terminal tabs. Opaque to the host.
+ */
+typedef struct KerfTerminals KerfTerminals;
+
+/**
  * A view the editor is drawn into. Opaque to the host.
  */
 typedef struct KerfView KerfView;
+
+/**
+ * Recent folders, trust and open folders. Opaque to the host.
+ */
+typedef struct KerfWorkspace KerfWorkspace;
+
+/**
+ * One navigator row. Flags are bytes, not `bool`, so any value is defined.
+ */
+typedef struct KerfNavigatorRow {
+  /**
+   * Indent level; top-level rows are 0.
+   */
+  uint32_t depth;
+  /**
+   * Non-zero for a folder.
+   */
+  uint8_t folder;
+  /**
+   * Non-zero when the folder's disclosure is open.
+   */
+  uint8_t expanded;
+  /**
+   * Non-zero for the selected row.
+   */
+  uint8_t selected;
+  /**
+   * Non-zero when the folder's listing hit a cap.
+   */
+  uint8_t truncated;
+} KerfNavigatorRow;
+
+/**
+ * One Open Quickly hit, best first.
+ */
+typedef struct KerfQuickHit {
+  /**
+   * A symbol's 0-based line; 0 for a file.
+   */
+  size_t line;
+  /**
+   * Match score; higher is better.
+   */
+  uint32_t score;
+  /**
+   * Non-zero for a symbol, zero for a file.
+   */
+  uint8_t symbol;
+  /**
+   * Non-zero for the selected hit.
+   */
+  uint8_t selected;
+} KerfQuickHit;
+
+/**
+ * A half-open range of UTF-8 byte offsets.
+ */
+typedef struct KerfByteRange {
+  /**
+   * First byte.
+   */
+  size_t start;
+  /**
+   * One past the last byte.
+   */
+  size_t end;
+} KerfByteRange;
 
 /**
  * One plugin's numbers; its texts come from `kerf_plugins_copy_text`.
@@ -246,6 +396,105 @@ typedef struct KerfPluginRow {
    */
   size_t disabled_exports;
 } KerfPluginRow;
+
+/**
+ * A tab's state; everything but its cells and texts.
+ */
+typedef struct KerfTerminalInfo {
+  /**
+   * Screen lines.
+   */
+  uint16_t rows;
+  /**
+   * Screen columns.
+   */
+  uint16_t cols;
+  /**
+   * Cursor line on the live screen.
+   */
+  uint16_t cursor_row;
+  /**
+   * Cursor column on the live screen.
+   */
+  uint16_t cursor_col;
+  /**
+   * Non-zero when the cursor is shown.
+   */
+  uint8_t cursor_visible;
+  /**
+   * Non-zero while the process runs.
+   */
+  uint8_t running;
+  /**
+   * Non-zero when a plugin opened the tab (the "Plugin" chip).
+   */
+  uint8_t from_plugin;
+  /**
+   * The exit code once `running` is 0.
+   */
+  uint32_t exit_code;
+  /**
+   * Rows scrolled back from the live screen.
+   */
+  uint32_t scroll_offset;
+  /**
+   * Rows of history kept, at most `HISTORY_ROWS` (the 4 MiB output cap).
+   */
+  uint32_t history_rows;
+  /**
+   * Bytes read from the process so far.
+   */
+  uint64_t output_bytes;
+  /**
+   * Moves on every change the view must redraw for.
+   */
+  uint64_t revision;
+} KerfTerminalInfo;
+
+/**
+ * A cell colour.
+ */
+typedef struct KerfTerminalColor {
+  /**
+   * `KERF_TERMINAL_COLOR_*`.
+   */
+  uint8_t kind;
+  /**
+   * The palette entry when `kind` is indexed.
+   */
+  uint8_t index;
+  /**
+   * Red, green, blue when `kind` is RGB.
+   */
+  uint8_t rgb[3];
+} KerfTerminalColor;
+
+/**
+ * One screen cell.
+ */
+typedef struct KerfTerminalCell {
+  /**
+   * UTF-8 of the grapheme; `text_len` bytes are used, 0 for a blank.
+   */
+  uint8_t text[KERF_TERMINAL_CELL_TEXT_BYTES];
+  /**
+   * Bytes used in `text`.
+   */
+  uint8_t text_len;
+  /**
+   * `kerf_terminal::attr` bits: 1 bold, 2 dim, 4 italic, 8 underline,
+   * 16 inverse, 32 wide, 64 the right half of a wide character.
+   */
+  uint8_t attrs;
+  /**
+   * Foreground.
+   */
+  struct KerfTerminalColor fg;
+  /**
+   * Background.
+   */
+  struct KerfTerminalColor bg;
+} KerfTerminalCell;
 
 /**
  * The editor's look, in logical points (`kerf_slint::Theme`). Colours are
@@ -419,6 +668,163 @@ enum KerfStatus kerf_editor_copy_text(struct KerfEditor *ed,
                                       size_t *out_len);
 
 /**
+ * A navigator over the folder at `root` (`root_len` bytes of UTF-8), its
+ * top level listed, in `*out`. Free it with `kerf_navigator_free`.
+ *
+ * # Safety
+ *
+ * `root` points to `root_len` readable bytes; `out` is valid for a write of
+ * one pointer.
+ */
+enum KerfStatus kerf_navigator_open(const uint8_t *root,
+                                    size_t root_len,
+                                    struct KerfNavigator **out);
+
+/**
+ * Free a navigator. Null is ignored.
+ *
+ * # Safety
+ *
+ * `nav` is null or a live handle not used again after this call.
+ */
+void kerf_navigator_free(struct KerfNavigator *nav);
+
+/**
+ * Copy the visible rows, top to bottom, into `buf` (`cap` rows) and their
+ * count into `*out_len`; sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `buf` is null or valid for `cap` rows of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_navigator_rows(struct KerfNavigator *nav,
+                                    struct KerfNavigatorRow *buf,
+                                    size_t cap,
+                                    size_t *out_len);
+
+/**
+ * Copy one `KERF_NAVIGATOR_TEXT_*` of row `row` as UTF-8 into `buf`;
+ * sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * As for `kerf_navigator_rows`, with `buf` valid for `cap` bytes.
+ */
+enum KerfStatus kerf_navigator_row_text(struct KerfNavigator *nav,
+                                        size_t row,
+                                        uint32_t field,
+                                        uint8_t *buf,
+                                        size_t cap,
+                                        size_t *out_len);
+
+/**
+ * Run one `KERF_NAVIGATOR_EXPAND`/`_COLLAPSE`/`_SELECT` on row `row`.
+ * `KERF_STATUS_NOTHING` when it had no effect, `KERF_STATUS_IO` when the
+ * folder cannot be listed.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle.
+ */
+enum KerfStatus kerf_navigator_row_command(struct KerfNavigator *nav, size_t row, uint32_t command);
+
+/**
+ * Show only rows whose name contains `text` (UTF-8, ignoring case) and
+ * their folders, across the whole project; empty text clears the filter.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `utf8` points to `len` readable bytes.
+ */
+enum KerfStatus kerf_navigator_set_filter(struct KerfNavigator *nav,
+                                          const uint8_t *utf8,
+                                          size_t len);
+
+/**
+ * Parse the file at `path` (UTF-8, relative to the root) so Open Quickly
+ * finds its symbols; again after it changes. `KERF_STATUS_UNSUPPORTED` for
+ * a language Kerf does not parse, `KERF_STATUS_OUT_OF_RANGE` for a path
+ * that is absolute or climbs out with `..`.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `path` points to `len` readable bytes.
+ */
+enum KerfStatus kerf_navigator_index_file(struct KerfNavigator *nav,
+                                          const uint8_t *path,
+                                          size_t len);
+
+/**
+ * Rank the project's files and indexed symbols against `query` (UTF-8,
+ * ignoring case), keep the best and select the first; the hit count goes
+ * in `*out_count`. An empty query has no hits.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `query` points to `len` readable bytes;
+ * `out_count` is valid for a write.
+ */
+enum KerfStatus kerf_navigator_quick_query(struct KerfNavigator *nav,
+                                           const uint8_t *query,
+                                           size_t len,
+                                           size_t *out_count);
+
+/**
+ * Copy the last query's hits into `buf` (`cap` hits) and their count into
+ * `*out_len`; sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `buf` is null or valid for `cap` hits of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_navigator_hits(struct KerfNavigator *nav,
+                                    struct KerfQuickHit *buf,
+                                    size_t cap,
+                                    size_t *out_len);
+
+/**
+ * Copy one `KERF_NAVIGATOR_TEXT_*` of hit `index` as UTF-8 into `buf`;
+ * sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * As for `kerf_navigator_row_text`.
+ */
+enum KerfStatus kerf_navigator_hit_text(struct KerfNavigator *nav,
+                                        size_t index,
+                                        uint32_t field,
+                                        uint8_t *buf,
+                                        size_t cap,
+                                        size_t *out_len);
+
+/**
+ * Copy the matched byte ranges of hit `index`'s name text into `buf`
+ * (`cap` ranges), for highlighting; sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `buf` is null or valid for `cap` ranges of
+ * writes; `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_navigator_hit_ranges(struct KerfNavigator *nav,
+                                          size_t index,
+                                          struct KerfByteRange *buf,
+                                          size_t cap,
+                                          size_t *out_len);
+
+/**
+ * Move Open Quickly's selection by `delta` hits (arrow and page keys),
+ * stopping at the ends. `KERF_STATUS_NOTHING` when it did not move.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle.
+ */
+enum KerfStatus kerf_navigator_quick_move(struct KerfNavigator *nav, int32_t delta);
+
+/**
  * Discover the plugins under `home` (Kerf's home, UTF-8) and the project at
  * `project` (UTF-8; `project_len` 0 for none), read the project's
  * `kerf-plugins.lock`, and put a new handle in `*out`. Nothing is granted
@@ -550,6 +956,155 @@ enum KerfStatus kerf_plugins_record_call(struct KerfPlugins *p,
                                          uint8_t ok);
 
 /**
+ * A handle with no tabs in `*out`. Trust is read from the trust file at
+ * `trust_file` (`trust_file_len` bytes of UTF-8) on every open, so a folder
+ * the user trusts or revokes later is judged by its current state. Free it
+ * with `kerf_terminals_free`, which stops every tab.
+ *
+ * # Safety
+ *
+ * `trust_file` points to `trust_file_len` readable bytes; `out` is valid for
+ * a write of one pointer.
+ */
+enum KerfStatus kerf_terminals_new(const uint8_t *trust_file,
+                                   size_t trust_file_len,
+                                   struct KerfTerminals **out);
+
+/**
+ * Stop every tab and free the handle. Null is ignored.
+ *
+ * # Safety
+ *
+ * `terms` is null or a live handle not used again after this call.
+ */
+void kerf_terminals_free(struct KerfTerminals *terms);
+
+/**
+ * Open a tab of `rows`×`cols` running `program` (empty: the user's shell)
+ * in the folder `cwd`, and write its id to `*out_id`. A non-empty
+ * `plugin_id` marks the tab as opened by that plugin; the host checked the
+ * plugin's `ide.terminal` grant. `KERF_STATUS_UNTRUSTED`, and nothing
+ * started, when `cwd` is not in a trusted folder.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; each pointer/length pair is readable for that
+ * many bytes; `out_id` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_open(struct KerfTerminals *terms,
+                                   const uint8_t *cwd,
+                                   size_t cwd_len,
+                                   const uint8_t *program,
+                                   size_t program_len,
+                                   const uint8_t *plugin_id,
+                                   size_t plugin_id_len,
+                                   uint16_t rows,
+                                   uint16_t cols,
+                                   uint64_t *out_id);
+
+/**
+ * The open tabs' ids in tab order, through the `copy_text` length contract.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `buf` is null or valid for `cap` ids; `out_len`
+ * is valid for a write.
+ */
+enum KerfStatus kerf_terminal_tabs(struct KerfTerminals *terms,
+                                   uint64_t *buf,
+                                   size_t cap,
+                                   size_t *out_len);
+
+/**
+ * Send `len` bytes to the tab's process as typed keys or a paste.
+ * `KERF_STATUS_TOO_LARGE` when the write or the pending input is over its cap.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `data` points to `len` readable bytes.
+ */
+enum KerfStatus kerf_terminal_write(struct KerfTerminals *terms,
+                                    uint64_t id,
+                                    const uint8_t *data,
+                                    size_t len);
+
+/**
+ * Resize the tab's screen and tell its process.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle.
+ */
+enum KerfStatus kerf_terminal_resize(struct KerfTerminals *terms,
+                                     uint64_t id,
+                                     uint16_t rows,
+                                     uint16_t cols);
+
+/**
+ * Scroll the view `offset` rows back into history (0: the live screen);
+ * the offset applied, clamped to the history kept, goes to `*out_offset`.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `out_offset` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_scroll(struct KerfTerminals *terms,
+                                     uint64_t id,
+                                     size_t offset,
+                                     size_t *out_offset);
+
+/**
+ * Stop the tab's process and remove the tab.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle.
+ */
+enum KerfStatus kerf_terminal_close(struct KerfTerminals *terms, uint64_t id);
+
+/**
+ * The tab's state into `*out`.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `out` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_info(struct KerfTerminals *terms,
+                                   uint64_t id,
+                                   struct KerfTerminalInfo *out);
+
+/**
+ * The cells on screen at the scroll offset, row-major (`rows * cols`
+ * cells), through the `copy_text` length contract.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `buf` is null or valid for `cap` cells;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_cells(struct KerfTerminals *terms,
+                                    uint64_t id,
+                                    struct KerfTerminalCell *buf,
+                                    size_t cap,
+                                    size_t *out_len);
+
+/**
+ * One `KERF_TERMINAL_TEXT_*` as UTF-8 into `buf` (`cap` bytes, no NUL),
+ * with the same length contract as `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `buf` is null or valid for `cap` bytes of
+ * writes; `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_copy_text(struct KerfTerminals *terms,
+                                        uint64_t id,
+                                        uint32_t which,
+                                        uint8_t *buf,
+                                        size_t cap,
+                                        size_t *out_len);
+
+/**
  * A view of `width`×`height` physical pixels at `scale` pixels per point
  * (2 on Retina). `theme` may be null. Every later call on the view comes
  * from the thread that made it, the host's UI thread: Slint is
@@ -635,6 +1190,141 @@ enum KerfStatus kerf_view_read_rgba(struct KerfView *view,
                                     uint8_t *buf,
                                     size_t cap,
                                     size_t *out_len);
+
+/**
+ * A workspace model in `*out`, reading `trust.toml` and `recent.toml` from
+ * `config_dir` (empty: Kerf's folder in the OS config directory) and user
+ * plugins from `<plugin_home>/plugins/`. Damaged files become notices in
+ * the state, never a failure; a relative folder is `KERF_STATUS_IO`. Free
+ * it with `kerf_workspace_free`.
+ *
+ * # Safety
+ *
+ * `config_dir` points to `config_dir_len` readable bytes, `plugin_home` to
+ * `plugin_home_len`; `out` is valid for a write of one pointer.
+ */
+enum KerfStatus kerf_workspace_new(const uint8_t *config_dir,
+                                   size_t config_dir_len,
+                                   const uint8_t *plugin_home,
+                                   size_t plugin_home_len,
+                                   struct KerfWorkspace **out);
+
+/**
+ * Free a workspace model. Null is ignored.
+ *
+ * # Safety
+ *
+ * `ws` is null or a live handle not used again after this call.
+ */
+void kerf_workspace_free(struct KerfWorkspace *ws);
+
+/**
+ * Open the folder at `path` and remember it; `*out_trusted` is 1 when it
+ * opened trusted, 0 when restricted (the state then asks).
+ * `KERF_STATUS_IO` when the folder cannot be resolved,
+ * `KERF_STATUS_TOO_LARGE` when too many folders are open.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes;
+ * `out_trusted` is valid for a write.
+ */
+enum KerfStatus kerf_workspace_open(struct KerfWorkspace *ws,
+                                    const uint8_t *path,
+                                    size_t path_len,
+                                    uint8_t *out_trusted);
+
+/**
+ * The user's "Trust folder" for `path`.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_workspace_trust(struct KerfWorkspace *ws,
+                                     const uint8_t *path,
+                                     size_t path_len);
+
+/**
+ * The user's "Stay restricted" for the open folder `path`.
+ * `KERF_STATUS_NOTHING` when it is not open.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_workspace_stay_restricted(struct KerfWorkspace *ws,
+                                               const uint8_t *path,
+                                               size_t path_len);
+
+/**
+ * Revoke trust in `path` and every trusted root inside it.
+ * `*out_stop` gets the number of open folders that lost trust; what each
+ * must stop is in `kerf_workspace_stop_json` until the next revoke.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes;
+ * `out_stop` is valid for a write.
+ */
+enum KerfStatus kerf_workspace_revoke(struct KerfWorkspace *ws,
+                                      const uint8_t *path,
+                                      size_t path_len,
+                                      size_t *out_stop);
+
+/**
+ * Close the open folder `path`. `KERF_STATUS_NOTHING` when it is not open.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_workspace_close(struct KerfWorkspace *ws,
+                                     const uint8_t *path,
+                                     size_t path_len);
+
+/**
+ * Remove `path` from the recent folders. `KERF_STATUS_NOTHING` when it
+ * was not listed.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_workspace_forget(struct KerfWorkspace *ws,
+                                      const uint8_t *path,
+                                      size_t path_len);
+
+/**
+ * Copy the state as UTF-8 JSON into `buf`: `recent` (path, host, chip
+ * `trusted` / `restricted` / `remote`), `folders` (root, mode, asking, and
+ * the prompt's items with kind, plugin, name, command and args verbatim)
+ * and `notices`. Sizing as for `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `buf` is null or valid for `cap` bytes of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_workspace_state_json(struct KerfWorkspace *ws,
+                                          uint8_t *buf,
+                                          size_t cap,
+                                          size_t *out_len);
+
+/**
+ * Copy the last revoke's report as UTF-8 JSON: `roots` removed and `stop`,
+ * one entry per folder with the items to stop. Empty before any revoke.
+ * Sizing as for `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `buf` is null or valid for `cap` bytes of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_workspace_stop_json(struct KerfWorkspace *ws,
+                                         uint8_t *buf,
+                                         size_t cap,
+                                         size_t *out_len);
 
 #ifdef __cplusplus
 }  // extern "C"
