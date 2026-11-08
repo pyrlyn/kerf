@@ -45,6 +45,20 @@ pub enum Error {
     /// The grammar or its query failed to load; a build problem, not input.
     #[error("grammar: {0}")]
     Grammar(String),
+    /// A language server answered in a position encoding the layer does not
+    /// speak (only UTF-8, UTF-16 and UTF-32 exist in LSP 3.17).
+    #[error("unsupported position encoding {0:?}")]
+    UnsupportedEncoding(String),
+    /// A language server's answer is for an older text of the file.
+    #[error("answer is for version {answered}, {path} is at {current}")]
+    Stale {
+        /// The file.
+        path: PathBuf,
+        /// The version the answer was asked for.
+        answered: u64,
+        /// The file's version now.
+        current: u64,
+    },
     /// tree-sitter returned no tree.
     #[error("parse produced no tree")]
     Parse,

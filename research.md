@@ -126,7 +126,7 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 - It runs one worker thread per plugin with two bounded lanes: control 16 and events 256. A full lane answers `Busy`. A watchdog cancels a call at its deadline (`src/host.rs:25-27`, `:307-329`).
 - WASI is off, extism HTTP is compiled out, and memory is capped (16 MiB default, 64 MiB max). There is no fuel metering; deadlines use timeouts (`src/host.rs:167-172`).
 - It has no manifest or permission model; those live in cox.
-- Wasmtime uses Cranelift, a JIT, so it cannot run on iOS (section "Mobile" below).
+- Wasmtime uses Cranelift, a JIT, so its native code cannot run on iOS (section "Mobile" below); §8 runs it on wasmtime's Pulley interpreter instead.
 - cox does not depend on it yet. cox keeps a near-identical host in `apps/cox/crates/cox-plugin/src/host.rs:124`.
 - PR #42, "package layout for discovery, staging and removal", is open, mergeable and +1099/−5 (https://github.com/listepo/crates-packages/pull/42, 2026-10-09). It ports cox's on-disk layout as a generic module:
   - user plugins live at `<home>/plugins/<id>/versions/<digest12>/`, with `current` and `previous`;
@@ -205,5 +205,174 @@ Commits at the time of checking: crates-packages `77ba2b1`, cox `5a17a0ef`, weft
 
 - **Plugin ABI.** Core modules with JSON over extism (cox, `wasm-plugin-host`) or WIT components (Zed, Lapce via WASI)? Taking cox "as is" means core modules; versioned WIT would be a new contract. Settled by the creator on 2026-10-09: cox's ABI as is.
 - **Licence.** Settled by the creator on 2026-10-09: the same terms as cox (GPL-3.0-or-later or royalty-free, plus commercial), so host code may be taken from cox.
-- **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window could be Slint through slint-bindings or Flutter through slint_dart.
-- **Mobile.** Wasmtime needs a JIT. iOS and Android need an interpreter backend behind the same host API.
+- **UI.** Plugin UI could be cox's `Widget` tree, extended for the IDE, or weft. The window: settled in T12 — native hosts over a C ABI, with Kerf's own GPU editor renderer (§7).
+- **Mobile.** Wasmtime needs a JIT. iOS and Android need an interpreter backend behind the same host API. Settled in T15: wasmtime's Pulley interpreter (§8).
+
+## 6. Remote development (T13)
+
+How other editors split the UI from the side that holds the code, and what Kerf's UI ↔ host protocol takes. Checked on 2026-10-19.
+
+| Product | What stays local | What runs next to the code | Wire | Version rule |
+| --- | --- | --- | --- | --- |
+| Zed (remote server) | UI, tree-sitter highlighting, language models, unsaved changes | Project files, language servers, tasks, terminals; locally installed extensions are propagated to the server ([docs](https://zed.dev/docs/remote-development)) | Protobuf `Envelope`s, each behind a `u32` length prefix, read with no size cap (`crates/remote/src/protocol.rs`, [zed@20fa2fa8](https://github.com/zed-industries/zed/blob/20fa2fa80949/crates/remote/src/protocol.rs)); one SSH ControlMaster multiplexes the protocol, terminals and tasks ([docs](https://zed.dev/docs/remote-development)) | The server binary must match the client version exactly; Zed re-downloads or uploads it on mismatch ([docs](https://zed.dev/docs/remote-development)) |
+| VS Code (Remote - SSH) | UI and UI extensions (themes, snippets, keymaps) | VS Code Server with workspace extensions, terminals, debugging ([remote extensions](https://code.visualstudio.com/api/advanced-topics/remote-extensions), [Remote - SSH](https://code.visualstudio.com/docs/remote/ssh)) | All traffic through the SSH tunnel ([Remote - SSH](https://code.visualstudio.com/docs/remote/ssh)); commands are the bridge between the two sides, arguments go through `JSON.stringify` ([remote extensions](https://code.visualstudio.com/api/advanced-topics/remote-extensions)) | Server must match the client version exactly ([remote extensions](https://code.visualstudio.com/api/advanced-topics/remote-extensions)) |
+| cox (`cox acp`) | The ACP client (Zed, JetBrains) | The agent: `cox-core` folds `Submission`s into `Event`s; `cox acp` maps that one stream to ACP (`apps/cox/docs/design/protocol.md`, cox@df04e1fe) | ACP: JSON-RPC 2.0 over stdio, one message per line, no embedded newlines ([transports](https://agentclientprotocol.com/protocol/transports)); cox uses the `agent-client-protocol` 2.0 crate (`apps/cox/Cargo.toml`) | `protocolVersion` is one integer, the major; an agent that does not support the client's major answers its latest, and the client should close ([initialization](https://agentclientprotocol.com/protocol/initialization)) |
+
+What Kerf takes:
+
+1. **Split.** Zed's: the host owns buffers, the semantic layer, and later the plugin host and language servers; the UI only renders and sends intent. Unlike Zed, Kerf's tree-sitter layer runs on the host, because `kerf-semantic` is the index plugins and inspections query (`docs/architecture.md` §2.1).
+2. **Wire.** ACP's: JSON-RPC 2.0, one JSON object per line, over any byte stream (stdio of `ssh host kerf-host`). Line framing needs no length header to trust, and JSON stays readable in a log. Kerf does not take Zed's protobuf: Kerf's other contracts (cox ABI, inspections) are JSON already.
+3. **Versioning.** ACP's integer major plus a minor for additions. Unlike Zed and VS Code, Kerf does not demand an exact build match: a minor bump keeps the connection; an unknown major is refused with a typed error and the connection ends.
+4. **Caps.** Zed reads a length prefix of up to 4 GiB into memory. Kerf caps every line before it is buffered, caps the requests queued per read, and caps replies too.
+
+Crates for the wire (registry API, checked 2026-10-19):
+
+| Crate | Version | Verdict |
+| --- | --- | --- |
+| [`tokio-util`](https://crates.io/crates/tokio-util) `LinesCodec` | 0.7.20 | **Taken** for framing. `new_with_max_length` errors on a longer line, then discards it up to the next newline and goes on ([source](https://github.com/tokio-rs/tokio/blob/tokio-util-0.7.20/tokio-util/src/codec/lines_codec.rs)). Its `Decoder` works on a `BytesMut` without a runtime, so the host stays synchronous. Already in the monorepo (cox). |
+| [`jsonrpsee-types`](https://crates.io/crates/jsonrpsee-types) | 0.26.1 | **Taken** for JSON-RPC 2.0 envelopes (`Request`, `Response`, `ErrorObject`, `Id`). Depends only on `http`, `serde`, `serde_json`, `thiserror`. |
+| [`lsp-server`](https://crates.io/crates/lsp-server) | 0.10.0 | Rejected: `read_msg_text` resizes its buffer to any `Content-Length` and reads header lines without a limit ([source](https://github.com/rust-lang/rust-analyzer/blob/master/lib/lsp-server/src/msg.rs)), so a hostile peer chooses the allocation. |
+| [`jsonrpsee`](https://crates.io/crates/jsonrpsee) | 0.26.1 | Rejected: an async client/server framework on tokio; the host needs only envelopes. |
+| [`jsonrpc-core`](https://crates.io/crates/jsonrpc-core) | 18.0.0 | Rejected: last release 2021-07-20. |
+
+## 7. UI shell (T12)
+
+Checked on 2026-10-19. Repository facts are at slint-bindings `4d61045` (which vendors slint_dart under `flutter/`); crate facts come from the crates.io API on that date.
+
+### Direction (the creator, 2026-10-20): Slint for the editor
+
+The creator changed the editor surface on 2026-10-20: the code editor is a **Slint** component embedded in the native host through **slint-bindings** (`EmbeddedHost<C: ComponentHandle>` in `slint-bindings-core`, `crates/slint-bindings-core/src/host.rs` at slint-bindings `9c1b353`), not Kerf's own GPU renderer. The native window, menus, input and the "Look" rules below stay. The GPU renderer (`kerf-render`) is removed once the Slint surface replaces it (plan.md T16). The "Editor renderer" and "Licence" subsections below record the 2026-10-19 choice that this replaces; the dependency and licence facts for Slint are in "Slint dependency and licence (T16.1)" at the end of this section.
+
+slint-bindings renders on the CPU into a host-owned RGBA buffer and calls itself an "M1 spike" (`README.md` at `9c1b353`); its GPU path is its own milestone M3 (`plan.md` at `9c1b353`).
+
+### Direction (the creator, 2026-10-19)
+
+Kerf uses **native controls** and **its own GPU renderer for the code editor**:
+
+- The window, menus, panels and dialogs are the platform's own: AppKit/SwiftUI on macOS, WinUI 3 (C#) on Windows, GTK 4 on Linux.
+- Each native host talks to the Rust core through a **C ABI**, the pattern slint-bindings uses (`sb_*`, `README.md`).
+- The editor surface is drawn by Kerf in Rust on the GPU, inside a native view, the way Zed draws its own editor.
+- **macOS first.** Windows and Linux hosts are separate tasks.
+
+This replaces the first comparison in this section (Slint from Rust against Flutter through slint_dart): both put a non-native toolkit around the whole window.
+
+### Why not the toolkit paths
+
+- **Slint from Rust** (winit backend): its own window with Slint widgets, not the platform's controls.
+- **Slint through slint-bindings**: native host, but the embedded surface is Slint, rendered on the CPU into a host-owned RGBA buffer (`README.md`, "How a frame happens"). The creator chose a Kerf renderer without Slint.
+- **Flutter through slint_dart**: Flutter owns the window and draws its own widgets; Dart and the Flutter SDK join the toolchain (slint_dart `README.md`; [Flutter Linux setup](https://docs.flutter.dev/platform-integration/linux/setup) adds GTK 3 and a C++ toolchain).
+
+### Editor renderer
+
+| Option | Version (crates.io) | Notes |
+| --- | --- | --- |
+| `wgpu` | 30.0.1, 2026-08-22 | Metal on macOS, D3D12 on Windows, Vulkan/GL on Linux; a surface is created from a raw window handle ([`SurfaceTargetUnsafe::RawHandle`](https://docs.rs/wgpu/30.0.1/wgpu/enum.SurfaceTargetUnsafe.html)), which on macOS is the host's `NSView`. |
+| `cosmic-text` | 0.19.0, 2026-04-22 | Shaping, line layout and font fallback, the same results on every OS. |
+| `glyphon` | 0.12.0, 2026-07-09 | Glyph atlas and text pipeline for wgpu on top of cosmic-text; depends on `wgpu ^30` and `cosmic-text ^0.19` (its 0.12.0 dependency list), so the three move together. |
+| `vello` | 0.11.0, 2026-10-02 | Linebender's 2D renderer. Its README calls the compute renderer "experimental" and the GPU sparse-strips renderer one that becomes primary "as it matures" ([vello README](https://github.com/linebender/vello)); not yet. |
+| `gpui` | 0.2.2, 2025-10-22 | Zed's framework owns its platform layer and window; it is not a surface to put inside another app's view. |
+
+**Choice:** `wgpu` + `cosmic-text` + `glyphon`, in a Rust crate that implements `kerf_core::Render` and draws into the surface of the native view. Text, cursor and edits stay in `kerf-core` (`Editor`, T12.1). The native host owns input and forwards it: on macOS an `NSView` that adopts `NSTextInputClient`, so IME and dead keys come from the system.
+
+Open, checked when the renderer task runs (**unverified** here): which software adapter CI runners offer for an offscreen render test (WARP on Windows, lavapipe on Linux, Metal on the macOS arm64 runner), and how a WinUI `SwapChainPanel` hosts a wgpu surface.
+
+### Look: Xcode on macOS, Visual Studio on Windows
+
+The creator's rule (2026-10-19): the code editor looks native — on macOS like Xcode's editor, on Windows like Visual Studio's. The renderer therefore hard-codes no font, colour or caret; the native host hands it a theme taken from the platform, and draws the platform's own pieces where the platform offers them.
+
+| | macOS (Xcode) | Windows (Visual Studio) |
+| --- | --- | --- |
+| Font | SF Mono, which Apple ships for "coding environments like Xcode" ([Apple Fonts](https://developer.apple.com/fonts/)) | Cascadia Mono, the Visual Studio 2022 default ([Fonts and colors](https://learn.microsoft.com/en-us/visualstudio/ide/how-to-change-fonts-and-colors-in-visual-studio?view=vs-2022)) |
+| Syntax colours | The user's Xcode theme, read at run time: Xcode 27.1 bundles `Default (Light).xccolortheme`, `Default (Dark).xccolortheme` and others under `DVTUserInterfaceKit.framework/Versions/A/Resources/FontAndColorThemes/` (observed on this machine, Xcode 27.1 build 27A9275; the file format and the user theme folder `~/Library/Developer/Xcode/UserData/FontAndColorThemes` are **unverified** — Apple does not document them). Kerf never copies Apple's files; without Xcode it falls back to its own theme. | Visual Studio's Light and Dark themes; where they are read from is **unverified** and belongs to the Windows host task. |
+| Caret | The system's own `NSTextInsertionIndicator` view over the GPU surface ("a view that represents the insertion indicator in text", macOS 14.0+, [AppKit](https://developer.apple.com/documentation/appkit/nstextinsertionindicator)) | Drawn from the WinUI theme resources (Windows host task). |
+| Selection | `NSColor.selectedTextBackgroundColor` ("the color to use for the background of selected text", [AppKit](https://developer.apple.com/documentation/appkit/nscolor/selectedtextbackgroundcolor)) | WinUI theme resources (Windows host task). |
+| Light/Dark | Follows the system appearance and switches the Xcode Light/Dark theme with it. | Follows the Windows theme. |
+| Key behaviour | `NSTextInputClient` with `doCommandBySelector:`, so the Cocoa text bindings Xcode users know (Option-arrows, Emacs-style Control keys) and IME come from the system. | Visual Studio's shortcuts, mapped in the host. |
+
+### Licence
+
+wgpu and cosmic-text are `MIT OR Apache-2.0`, glyphon `MIT OR Apache-2.0 OR Zlib` (crates.io metadata of the versions above), which fits all of Kerf's licences. (Superseded on 2026-10-20: Slint is back, see the next subsection.)
+
+### Slint dependency and licence (T16.1)
+
+Checked on 2026-10-20 against slint-bindings `9c1b353e114c83d5cb03cb61d504a166ed49efa1` (2026-10-18, `main`), Slint `v1.18.1` (tag commit `372cf0e`) and the crates.io API.
+
+**The dependency.**
+
+- `slint-bindings-core` is not on crates.io: the workspace sets `publish = false` and `license = "Apache-2.0"` ([`Cargo.toml`](https://github.com/pyrlyn/slint-bindings/blob/9c1b353e114c83d5cb03cb61d504a166ed49efa1/Cargo.toml)). Kerf takes it as a Cargo git dependency pinned by `rev`, like `wasm-plugin-host` and `cox-plugin-api`.
+- It path-depends on two crates inside the same repository: `slint-embed` (`flutter/packages/slint/rust/embed`) and `slint-dart-interpreter` (`flutter/packages/slint_build/interpreter`, which inherits its versions from `flutter/Cargo.toml`). Cargo finds both in the git checkout: `cargo metadata` (cargo 1.99.0) on a probe crate and on this workspace resolved all three to `git+https://github.com/pyrlyn/slint-bindings?rev=9c1b353…`. Cargo's rule for this: a git dependency's packages are searched for in the whole repository ([The Cargo Book, "Specifying dependencies from git repositories"](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories), checked 2026-10-20). Both crates are Apache-2.0 (`flutter/packages/slint/LICENSE`, `flutter/packages/slint_build/LICENSE` at that commit).
+- Exact pins it forces ([`Cargo.toml`](https://github.com/pyrlyn/slint-bindings/blob/9c1b353e114c83d5cb03cb61d504a166ed49efa1/Cargo.toml) lines 23–33): `slint = "=1.18.1"` (`default-features = false`, `std`, `compat-1-18`, `renderer-software`), `slint-interpreter = "=1.18.1"`, `i-slint-core = "=1.18.1"` (`image-decoders`, `svg`). Kerf therefore pins `slint` and `slint-build` to `=1.18.1` too; a Slint upgrade means moving the `rev` first.
+- On macOS and Windows it also turns on `slint`'s `renderer-femtovg-wgpu` and `unstable-wgpu-30` and adds `pollster = "0.4.0"` ([`crates/slint-bindings-core/Cargo.toml`](https://github.com/pyrlyn/slint-bindings/blob/9c1b353e114c83d5cb03cb61d504a166ed49efa1/crates/slint-bindings-core/Cargo.toml)). So `wgpu 30.0.1` stays in Kerf's macOS and Windows dependency tree through `slint-bindings-core` even after T16.3 drops Kerf's own `wgpu`, `glyphon` and `pollster`; `slint-interpreter` and the Slint compiler are in every build for the same reason.
+- `EmbeddedHost::new` installs the embedding platform for the calling thread and checks the scale; `render` refuses a buffer shorter than `width × height × 4` ([`crates/slint-bindings-core/src/host.rs`](https://github.com/pyrlyn/slint-bindings/blob/9c1b353e114c83d5cb03cb61d504a166ed49efa1/crates/slint-bindings-core/src/host.rs)).
+
+**The licence.** `slint` 1.18.1 and `slint-build` 1.18.1 are `GPL-3.0-only OR LicenseRef-Slint-Royalty-free-2.0 OR LicenseRef-Slint-Software-3.0` (crates.io API, versions published 2026-09-21).
+
+- **Kerf under GPL-3.0-or-later.** Slint is taken under GPL-3.0-only. GPL-3.0-or-later code may be combined with GPL-3.0-only code; the combined binary is then distributed under GPL-3.0. Kerf's own sources keep their "or later" grant.
+- **Kerf under its royalty-free or commercial licence.** Slint is taken under the [Slint Royalty-free Desktop, Mobile, and Web Applications License 2.0](https://github.com/slint-ui/slint/blob/v1.18.1/LICENSES/LicenseRef-Slint-Royalty-free-2.0.md) (identical to `LICENSES/LicenseRef-Slint-Royalty-free-2.0.md` in the 1.18.1 crate). It allows distributing Slint as part of a desktop, mobile or web application, modified or not (§1), on one attribution condition (§2): either the `AboutSlint` widget in an About screen reachable from the application's top-level menu (or the splash screen when there is none), or the "Made with Slint" badge on a public page, preferably the download page. Limits (§3): not alone outside an application, not in embedded systems, not in an application that exposes Slint's APIs, and licence notices in Slint's sources stay. The paid Slint Software License 3.0 is not needed for Kerf's desktop app.
+- **What follows for Kerf.** The macOS app shows `AboutSlint` in its About window, or the download page carries the badge; that belongs to the host task that adds the About window. Kerf's C ABI and plugin API must not hand Slint's own API (components, `.slint` source, properties) to plugins or other programs. Kerf's licences cannot sublicense Slint: anyone who builds on Kerf under Kerf's royalty-free or commercial licence takes Slint under one of Slint's own licences. None of this blocks T16.
+
+## 8. Mobile plugin backend (T15)
+
+Checked on 2026-10-20. Kerf's plugins are extism modules (cox's ABI, §4) loaded by `wasm-plugin-host`. On iOS an app cannot map writable and executable memory: the entitlement that allows `MAP_JIT` lists macOS only (https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.cs.allow-jit, platforms: macOS 10.7+). So wasmtime's Cranelift output cannot run there, and the backend has to interpret.
+
+### Candidates
+
+| Candidate | State | Fit for Kerf's extism plugins |
+| --- | --- | --- |
+| wasmtime Pulley | Ships inside wasmtime 49 (feature `pulley`, `Config::target("pulley64")`); wasmtime calls it "a portable implementation of executing WebAssembly code" that runs wherever wasmtime builds, and uses it when Cranelift has no native backend (https://docs.wasmtime.dev/stability-platform-support.html, 2026-10-20) | Same engine extism already runs: extism 1.41.0 `PluginBuilder::with_wasmtime_config` keeps the caller's target and overrides only epoch interruption, debug info, coredump, profiler and the tail-call, function-references, GC and exception proposals (extism 1.41.0 `src/plugin.rs:58-70`, `src/plugin_builder.rs:195-209`). No new dependency, no second host. |
+| wasmi | v2.0.0, 2026-09-01 (https://github.com/wasmi-labs/wasmi/releases) | Pure-Rust interpreter, but extism has no wasmi host: extism 1.41.0 depends on wasmtime (`Cargo.toml`). Kerf would re-implement extism's kernel linking, memory and host-function ABI on wasmi. `plugwright-wasmi` (pyrlyn/crates `rust/plugwright/crates/plugwright-wasmi`, 8056429) speaks plugwright's own `pw_*` ABI, not extism's. |
+| WAMR | WAMR-2.4.5, 2026-06-29 (https://github.com/bytecodealliance/wasm-micro-runtime/releases) | C runtime with an interpreter; the same extism re-hosting as wasmi, plus a C build for each mobile target. |
+| wasm3 | README: "Wasm3 will enter a minimal maintenance phase"; no releases listed (https://github.com/wasm3/wasm3, 2026-10-20) | Unmaintained by Kerf's rule; excluded. |
+
+### Choice
+
+Pulley, through feature `pulley` of the shared host (pyrlyn/crates T20.6, pyrlyn/crates#107; the same feature on its successor `plugwright-extism`). With it on, `PluginHost::load` passes extism a `wasmtime::Config` whose target is `pulley64` (`pulley32` on 32-bit targets). The host API is unchanged. `kerf-plugin` forwards it as feature `interpreter`, and iOS and Android targets turn it on through a target-specific dependency (`crates/kerf-plugin/Cargo.toml`).
+
+Evidence, on this Mac (aarch64-apple-darwin):
+
+- Kerf's T6 tests (`crates/kerf-plugin/tests/plugins.rs`, unchanged) pass with `--features interpreter`; CI runs them on every target.
+- The shared host's whole suite passes with `pulley` on, including the deadline (epoch interruption), the memory cap and a module that uses exception handling; a test asserts that the engine built from the config `is_pulley()`.
+- `cargo check -p kerf-plugin` succeeds for `aarch64-apple-ios` and for `aarch64-linux-android` (NDK 30.0.15729638), with `pulley` on through the target dependency.
+- A scratch host on extism 1.41.0 + wasmtime 49.0.3: a 50-million-iteration loop took 14.7 ms native and 252.8 ms on Pulley (release build), about 17× slower.
+
+### Limits
+
+- Speed: interpreted code is roughly an order of magnitude slower than Cranelift's (measured above); wasmtime states Pulley "will never be as fast as native Cranelift backends" (platform-support page above). Kerf plugins answer short calls, and their deadlines and the call budget apply as on desktop.
+- Load time: Cranelift still compiles each module, to Pulley bytecode, on the device at every load, because the host disables extism's compilation cache. Precompiling (`Engine::precompile_module`) is not wired; it would need a signed cache, since loading precompiled code is `unsafe`.
+- Both mobile builds take the interpreter. Whether Android apps may map executable memory for a JIT was not checked against a primary source (**unverified**); the interpreter is the safe default there and the target line in `kerf-plugin/Cargo.toml` is the one place to change.
+- Not yet run on a device or simulator: Kerf has no iOS or Android host. Only `cargo check` for both targets and the desktop tests above.
+- wasmtime lists iOS and Android as supported but "less well tested" (platform-support page above).
+### Linux host (T17)
+
+Checked on 2026-10-20. The creator's choices that day: the host is Rust on gtk4-rs calling `kerf-ffi`'s C functions (not C over `kerf.h`), and the look is GNOME Text Editor's on plain GTK 4, without libadwaita.
+
+**Bindings and GTK version.**
+
+- `gtk4` 0.11.5 (2026-09-20, MIT, rust-version 1.92; crates.io API) from [gtk-rs/gtk4-rs](https://github.com/gtk-rs/gtk4-rs). Its `gtk4-sys` 0.11.5 asks pkg-config for GTK ≥ 4.0 and raises the floor per feature (`v4_2` … `v4_24`, `[package.metadata.system-deps]` in the crate's `Cargo.toml`).
+- `ubuntu-latest` is Ubuntu 24.04 ([actions/runner-images README](https://github.com/actions/runner-images), main on 2026-10-20), whose `gtk4` source package is 4.14.5 in noble-updates (Launchpad API, `getPublishedSources`). Kerf turns on `v4_14` and nothing newer, so the host builds on the CI runner and on the Ubuntu 24.04 Lima VM.
+- The rejected alternative, C with Meson over `kerf.h`, needs manual memory management and a second build tool; gtk4-rs keeps the host in the Cargo workspace and still crosses only the C ABI.
+
+**Showing the frame.** `gdk_memory_texture_new(width, height, format, bytes, stride)` makes a texture from a blob of pixels ([GdkMemoryTexture.new](https://docs.gtk.org/gdk4/ctor.MemoryTexture.new.html), GTK docs 4.24.1), and `GDK_MEMORY_R8G8B8A8_PREMULTIPLIED` is 4 bytes, red, green, blue, alpha, premultiplied ([GdkMemoryFormat](https://docs.gtk.org/gdk4/enum.MemoryFormat.html)), exactly what `kerf_view_read_rgba` writes. The widget appends it in its `snapshot` at its logical size, so at scale 2 the 2× frame maps pixel for pixel. A test reads the texture back with `gdk_texture_download`, whose data is `CAIRO_FORMAT_ARGB32` ([Texture.download](https://docs.gtk.org/gdk4/method.Texture.download.html)): premultiplied BGRA bytes on little-endian machines.
+
+**Input.** A `GtkIMMulticontext` switches between input methods and is what GtkText and GtkTextView use ([IMMulticontext](https://docs.gtk.org/gtk4/class.IMMulticontext.html)). `gtk_event_controller_key_set_im_context` lets the key controller feed it ([EventControllerKey.set_im_context](https://docs.gtk.org/gtk4/method.EventControllerKey.set_im_context.html)); `::commit` brings "a complete input sequence", a single character or the end of a composition ([IMContext::commit](https://docs.gtk.org/gtk4/signal.IMContext.commit.html)); `set_cursor_location` tells the input method where the caret is, relative to the widget ([IMContext.set_cursor_location](https://docs.gtk.org/gtk4/method.IMContext.set_cursor_location.html)). With `set_use_preedit(FALSE)` the input method shows its feedback itself, for example in a window of its own ([IMContext.set_use_preedit](https://docs.gtk.org/gtk4/method.IMContext.set_use_preedit.html)): the host commits text as typed, as the macOS host does, until the core has a marked range.
+
+**The caret.** GTK 4 has no caret widget, and `gtk_snapshot_render_insertion_cursor` is deprecated since 4.10 ([Snapshot.render_insertion_cursor](https://docs.gtk.org/gtk4/method.Snapshot.render_insertion_cursor.html)). The host therefore draws the caret over the frame with GTK's own rules, read from `GtkSettings` at run time:
+
+- width `height × gtk-cursor-aspect-ratio + 1` (`stem_width` in [`gtk/gtkrenderlayout.c`](https://gitlab.gnome.org/GNOME/gtk/-/blob/4.14.2/gtk/gtkrenderlayout.c), 4.14.2); the ratio defaults to 0.04 ([gtk-cursor-aspect-ratio](https://docs.gtk.org/gtk4/property.Settings.gtk-cursor-aspect-ratio.html));
+- GtkTextView's blink: the `gtk-cursor-blink-time` cycle (default 1200 ms, [gtk-cursor-blink-time](https://docs.gtk.org/gtk4/property.Settings.gtk-cursor-blink-time.html)) split evenly into visible, fading out, hidden, fading in; after an edit the first fade waits half a cycle; it stops after `gtk-cursor-blink-timeout` seconds (default 10, "reset after each user interaction", [gtk-cursor-blink-timeout](https://docs.gtk.org/gtk4/property.Settings.gtk-cursor-blink-timeout.html)) (`blink_alpha`, `add_blink_timeout`, `blink_cb` in [`gtk/gtktextview.c`](https://gitlab.gnome.org/GNOME/gtk/-/blob/4.14.2/gtk/gtktextview.c), 4.14.2);
+- no caret while text is selected: GtkTextLayout adds no cursor when the buffer has a selection (`gtk/gtktextlayout.c` line 1880 at 4.14.2).
+
+**The look: GNOME Text Editor.**
+
+| | Value | Source |
+| --- | --- | --- |
+| Font | GNOME's `org.gnome.desktop.interface monospace-font-name`, default `'Adwaita Mono 11'` (it was `'Source Code Pro 10'` in 46.0); GNOME Text Editor uses it while its `use-system-font` is on (default true), else its `custom-font`, default `'Monospace 11'` | [gsettings-desktop-schemas](https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas/-/blob/main/schemas/org.gnome.desktop.interface.gschema.xml.in) (main and 46.0); [gnome-text-editor 49.0 schema](https://gitlab.gnome.org/GNOME/gnome-text-editor/-/blob/49.0/data/org.gnome.TextEditor.gschema.xml) |
+| Line height | `line-height` default 1.2, a factor on the font's own line (the host uses Pango's ascent plus descent) | gnome-text-editor 49.0 schema |
+| Colours | style scheme default `'Adwaita'`. GtkSourceView 5.18.0 `Adwaita.xml`: text `dark_3` #504E55 on `light_1` #FFFFFF, cursor `dark_1` #77767B; `Adwaita-dark.xml`: text `light_5` #C0BFBC on `libadwaita-dark` #1D1D20, cursor `light_5` | gnome-text-editor 49.0 schema; [GtkSourceView styles](https://gitlab.gnome.org/GNOME/gtksourceview/-/tree/5.18.0/data/styles) |
+| Selection | the schemes set none, so GTK's theme decides: `$selected_text_bg_color` is #3584E4 at 0.3 alpha (light) and `darken(#3584e4, 20%)` = #15539E at 0.8 alpha (dark) | [`gtk/theme/Default/_colors.scss`](https://gitlab.gnome.org/GNOME/gtk/-/blob/4.14.2/gtk/theme/Default/_colors.scss), 4.14.2 (darken computed in HSL) |
+| Light or dark | GTK 4.14 has no public "is the theme dark" call; `gtk-interface-color-scheme` exists only from 4.20 ([Settings:gtk-interface-color-scheme](https://docs.gtk.org/gtk4/property.Settings.gtk-interface-color-scheme.html)). The host reads the widget's foreground colour (`gtk_widget_get_color`, 4.10+, [Widget.get_color](https://docs.gtk.org/gtk4/method.Widget.get_color.html)) and takes light text for a dark theme | — |
+| Window | header bar with Open and a main menu; GNOME's shortcuts (Ctrl+O, Ctrl+Z, Shift+Ctrl+Z, Ctrl+A, Ctrl+W, Ctrl+Q) | [GNOME HIG, keyboard](https://developer.gnome.org/hig/reference/keyboard.html) (**unverified**: not re-read on this date) |
+
+Pango sizes are points; GTK lays out at 96 dpi, so the host converts with ×96/72 (**unverified** for displays that set `gtk-xft-dpi`).
+
+**Tests on a display.** `gtk::init` calls `gtk_init_check` and returns an error instead of exiting when there is no windowing system ([docs.rs gtk4 0.11.5 `init`](https://docs.rs/gtk4/0.11.5/gtk4/fn.init.html)). CI runs Xvfb on the Linux runner; locally the test runs in a Lima VM from `template:ubuntu-24.04`, the same GTK 4.14 as CI.

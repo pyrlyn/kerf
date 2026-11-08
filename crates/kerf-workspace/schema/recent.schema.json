@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RecentFile",
+  "description": "Kerf's recent folders (`recent.toml` in the user's config directory).\nWritten by Kerf whenever a folder is opened or forgotten.",
+  "type": "object",
+  "properties": {
+    "folders": {
+      "description": "Most recent first.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Entry"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": false,
+  "$comment": "Generated from crates/kerf-workspace. Regenerate with KERF_BLESS_SCHEMA=1 cargo test -p kerf-workspace.",
+  "$defs": {
+    "Entry": {
+      "description": "One remembered folder.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "The folder: absolute and canonical for a local one, as the remote\nhost spells it for a remote one.",
+          "type": "string"
+        },
+        "host": {
+          "description": "The remote host; absent for a local folder.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ]
+    }
+  }
+}

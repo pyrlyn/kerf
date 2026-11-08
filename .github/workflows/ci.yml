@@ -40,4 +40,75 @@ jobs:
       contents: read
       actions: write
     with:
+      # ketch alongside Rust: the `kerf-binaries` tests run the real binary.
+      mise-install-args: rust github:pyrlyn/ketch
+      # `kerf-slint`'s text stack finds fonts through fontconfig on Linux, and
+      # its build links the library's headers. The Linux host (`kerf-gtk`)
+      # links GTK 4 and its test needs a display: a virtual X server that
+      # lives for the rest of the job, and KERF_REQUIRE_DISPLAY so a missing
+      # display fails instead of skipping.
+      setup-command: |
+        if [ "$RUNNER_OS" = Linux ]; then
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libfontconfig1-dev libgtk-4-dev xvfb
+          setsid Xvfb :99 -screen 0 1280x1024x24 >/dev/null 2>&1 < /dev/null &
+          echo DISPLAY=:99 >> "$GITHUB_ENV"
+          echo KERF_REQUIRE_DISPLAY=1 >> "$GITHUB_ENV"
+        fi
+      # The default run, then the plugin tests again on wasmtime's Pulley
+      # interpreter, the backend iOS and Android builds use (T15).
+      test-command: |
+        cargo test $PACKAGE_ARGS --all-targets $FEATURE_ARGS $LOCKED_ARGS
+        cargo test -p kerf-plugin --all-targets --features interpreter $LOCKED_ARGS
       matrix: ${{ vars.MACOS_CI_DISABLED == 'true' && '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}]' || '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"xcode-27","target":"aarch64-apple-darwin"},{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}]' }}
+
+  # Which runner the macOS host job uses: pyrlyn/ci's macos-runner action reads
+  # MACOS_RUNNER (unset or `hosted` = the hosted label, `xcode-27-local` = the
+  # dedicated Mac).
+  macos-runner:
+    if: vars.MACOS_CI_DISABLED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      value: ${{ steps.r.outputs.value }}
+    steps:
+      - id: r
+        uses: pyrlyn/ci/.github/actions/macos-runner@3fa4275e525269297a4d193c427f965ad9dd7544 # main
+        with:
+          runner: ${{ vars.MACOS_RUNNER }}
+          value: '["xcode-27"]'
+
+  # The macOS host (`macos/`, T12.4). SwiftPM cannot build Cargo crates, so
+  # Cargo builds kerf-ffi's static library first; the Swift tests then draw
+  # through it on the runner's Metal device.
+  macos-host:
+    needs: macos-runner
+    if: >-
+      vars.MACOS_CI_DISABLED != 'true'
+      && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    # Fork pull requests keep the hosted label: a self-hosted runner would run their code.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(needs.macos-runner.outputs.value)[0] || 'xcode-27' }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pyrlyn/ci/.github/actions/setup-xcode@3fa4275e525269297a4d193c427f965ad9dd7544 # main
+        with:
+          version: "27"
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          install_args: rust
+      - name: Build the C ABI library
+        run: cargo build --locked -p kerf-ffi
+      - name: Format
+        run: xcrun swift-format lint --strict -r Sources Tests Package.swift
+      - name: Build
+        run: swift build --arch arm64
+      - name: tests skipped (SKIP_CI_TESTS)
+        if: vars.SKIP_CI_TESTS == 'true' || env.SKIP_CI_TESTS == 'true'
+        run: echo "::notice title=SKIP_CI_TESTS::tests skipped by SKIP_CI_TESTS"
+      - if: vars.SKIP_CI_TESTS != 'true' && env.SKIP_CI_TESTS != 'true'
+        name: Test
+        run: swift test --arch arm64

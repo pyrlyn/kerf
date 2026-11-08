@@ -5,7 +5,7 @@
 //! Definitions and references per file, from the grammar's tags query run on
 //! the file's existing tree.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
@@ -58,6 +58,16 @@ pub enum Role {
     Reference,
 }
 
+/// Who found a symbol. tree-sitter is the base; a language server only adds
+/// what tree-sitter cannot see.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Source {
+    /// The grammar's tags query.
+    TreeSitter,
+    /// A language server's answer, merged by [`Semantic::merge_lsp`](crate::Semantic::merge_lsp).
+    LanguageServer,
+}
+
 /// One definition or reference.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Symbol {
@@ -73,6 +83,8 @@ pub struct Symbol {
     pub range: Range<usize>,
     /// 0-based line of the identifier.
     pub line: usize,
+    /// Who found it.
+    pub source: Source,
 }
 
 /// Every symbol of one file, as of its last re-index.
@@ -99,8 +111,14 @@ pub(crate) struct TagsQuery {
 
 impl TagsQuery {
     pub(crate) fn rust(language: &Language) -> Result<Self, Error> {
-        let source = format!("{}\n{RUST_EXTRA_TAGS}", tree_sitter_rust::TAGS_QUERY);
-        let query = Query::new(language, &source).map_err(|e| Error::Grammar(e.to_string()))?;
+        Self::new(
+            language,
+            &format!("{}\n{RUST_EXTRA_TAGS}", tree_sitter_rust::TAGS_QUERY),
+        )
+    }
+
+    pub(crate) fn new(language: &Language, source: &str) -> Result<Self, Error> {
+        let query = Query::new(language, source).map_err(|e| Error::Grammar(e.to_string()))?;
         let names = query.capture_names();
         let name_capture = names
             .iter()
@@ -165,6 +183,7 @@ impl TagsQuery {
                 name_range: name.byte_range(),
                 range: node.byte_range(),
                 line: name.start_position().row,
+                source: Source::TreeSitter,
             };
             best.insert(key, (m.pattern_index, symbol));
         }
@@ -201,6 +220,42 @@ impl Index {
             truncated,
         };
         self.files.insert(path.to_path_buf(), file);
+    }
+
+    /// Adds symbols a language server found to an indexed file. A symbol at a
+    /// name range the file already has is skipped, so tree-sitter's stays.
+    /// Returns how many were added and how many were already known.
+    pub(crate) fn merge(&mut self, path: &Path, found: Vec<Symbol>) -> (usize, usize) {
+        let Some(file) = self.files.get_mut(path) else {
+            return (0, 0);
+        };
+        let mut seen: HashSet<(usize, usize)> = file
+            .symbols
+            .iter()
+            .map(|s| (s.name_range.start, s.name_range.end))
+            .collect();
+        let (mut added, mut known) = (0, 0);
+        for symbol in found {
+            if !seen.insert((symbol.name_range.start, symbol.name_range.end)) {
+                known += 1;
+                continue;
+            }
+            if file.symbols.len() >= MAX_SYMBOLS_PER_FILE {
+                file.truncated = true;
+                break;
+            }
+            self.by_name
+                .entry(symbol.name.clone())
+                .or_default()
+                .insert(path.to_path_buf());
+            file.symbols.push(symbol);
+            added += 1;
+        }
+        file.symbols
+            .sort_by_key(|s| (s.name_range.start, s.name_range.end));
+        self.revision += 1;
+        file.revision = self.revision;
+        (added, known)
     }
 
     pub(crate) fn remove(&mut self, path: &Path) {

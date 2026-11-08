@@ -1,0 +1,37 @@
+[package]
+name = "kerf-remote"
+description = "Kerf's UI <-> host protocol and the headless host that owns buffers and the semantic layer next to the code"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "kerf-host"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace versions live in the root `[workspace.dependencies]`.
+kerf-core = { workspace = true }
+kerf-semantic = { workspace = true }
+jsonrpsee-types = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio-util = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

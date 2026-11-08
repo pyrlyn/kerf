@@ -1,4 +1,5 @@
 /target
 .DS_Store
 /.claude/worktrees
+/macos/.build
 .rtok/

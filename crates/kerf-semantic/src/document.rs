@@ -16,13 +16,27 @@ use crate::{Error, MAX_FILE_BYTES};
 pub(crate) struct Document {
     pub(crate) source: String,
     pub(crate) tree: Tree,
+    /// Index into `Semantic`'s grammars.
+    pub(crate) grammar: usize,
+    /// Bumped by every open and edit; see `Semantic::version`.
+    pub(crate) version: u64,
 }
 
 impl Document {
-    pub(crate) fn parse(parser: &mut Parser, source: String) -> Result<Self, Error> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        grammar: usize,
+        version: u64,
+        source: String,
+    ) -> Result<Self, Error> {
         check_len(&source)?;
         let tree = parser.parse(&source, None).ok_or(Error::Parse)?;
-        Ok(Self { source, tree })
+        Ok(Self {
+            source,
+            tree,
+            grammar,
+            version,
+        })
     }
 
     /// Re-parses from the old tree and returns the byte ranges whose syntax

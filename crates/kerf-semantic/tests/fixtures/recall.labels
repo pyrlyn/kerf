@@ -1,8 +1,8 @@
 # Hand labels for recall.rs: `def|ref <name> <1-based line>`.
 # Definitions: items (const, static, struct, enum, variant, type, trait,
 # method, fn, macro, mod). References: calls of every form, macro calls and
-# impl targets. Out of scope: fields, locals, types in signatures, `use`
-# paths and patterns.
+# impl targets, and functions named as values. Out of scope: fields, locals,
+# types in signatures, `use` paths and patterns.
 def LIMIT 7
 def GREETING 8
 def Point 10
@@ -50,3 +50,10 @@ ref manhattan 79
 ref println 80
 ref len 80
 ref square 81
+def getter 86
+ref getter 94
+def limit 94
+def scaled 96
+ref square 97
+ref scale 98
+ref limit 98

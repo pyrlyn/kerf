@@ -1,0 +1,32 @@
+[package]
+name = "kerf-slint"
+description = "Kerf's editor surface as a Slint component: draws a kerf-core frame on the CPU into a buffer the native host owns and reports the caret for the system caret"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace versions live in the root `[workspace.dependencies]`.
+kerf-core = { workspace = true }
+slint = { workspace = true }
+slint-bindings-core = { workspace = true }
+thiserror = { workspace = true }
+
+[build-dependencies]
+slint-build = { workspace = true }
+
+[lints.rust]
+# `deny`, not `forbid`: the code `slint-build` generates allows `unsafe_code`
+# on its own items, which `forbid` refuses. Kerf's own code here has none.
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

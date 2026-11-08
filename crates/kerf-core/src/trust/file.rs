@@ -6,12 +6,13 @@
 //! committed JSON Schema (`crates/kerf-core/schema/trust.schema.json`) is
 //! generated from.
 
-use std::io::{self, Read};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use super::{MAX_TRUSTED_ROOTS, TrustStore};
+use crate::ReadError;
 
 /// Largest trust file read or written. Room for [`MAX_TRUSTED_ROOTS`] long
 /// paths; anything bigger was not written by Kerf and is refused unread.
@@ -149,24 +150,16 @@ impl TrustStore {
 }
 
 fn read_capped(path: &Path) -> Result<Option<String>, TrustFileError> {
-    let file = match std::fs::File::open(path) {
-        Ok(file) => file,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(io_error(path, &e)),
-    };
-    // One byte past the cap tells "exactly at the cap" from "over it" without
-    // reading an attacker-sized file into memory.
-    let mut text = String::new();
-    file.take(MAX_TRUST_FILE_BYTES + 1)
-        .read_to_string(&mut text)
-        .map_err(|e| io_error(path, &e))?;
-    if text.len() as u64 > MAX_TRUST_FILE_BYTES {
-        return Err(TrustFileError::TooLarge {
+    match crate::read_text(path, MAX_TRUST_FILE_BYTES) {
+        Ok(text) => Ok(Some(text)),
+        Err(ReadError::Io(e)) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(ReadError::Io(e)) => Err(io_error(path, &e)),
+        Err(ReadError::TooLarge { cap }) => Err(TrustFileError::TooLarge {
             path: path.to_path_buf(),
-            cap: MAX_TRUST_FILE_BYTES,
-        });
+            cap,
+        }),
+        Err(ReadError::NotUtf8) => Err(io_error(path, &io::ErrorKind::InvalidData.into())),
     }
-    Ok(Some(text))
 }
 
 fn io_error(path: &Path, e: &io::Error) -> TrustFileError {

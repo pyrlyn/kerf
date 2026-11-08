@@ -6,54 +6,89 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 
 | # | Status | Priority | Complexity | Readiness | Agent |
 | --- | --- | --- | --- | --- | --- |
-| T4.1 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
-| T4.2 | in progress | P1 | 3 | 10% | MiMo Desktop / mimo |
-| T6 | todo | P1 | 4 | 0% | |
-| T8 | todo | P2 | 5 | 0% | |
-| T11 | todo | P3 | 3 | 0% | |
-| T12 | todo | P2 | 5 | 0% | |
-| T13 | todo | P3 | 5 | 0% | |
-| T14 | todo | P3 | 4 | 0% | |
+| T15 | in progress | P3 | 5 | 70% | Claude / opus-5.5 |
 | T15 | todo | P3 | 5 | 0% | |
+| T17.2 | in progress | P1 | 4 | 60% | Claude / opus-5.5 |
+| T17.3 | in progress | P1 | 2 | 60% | Claude / opus-5.5 |
+| T19.2 | todo | P1 | 4 | 0% | |
+| T19.3 | todo | P1 | 3 | 0% | |
+| T19.4 | todo | P1 | 3 | 0% | |
+| T19.5 | todo | P1 | 5 | 0% | |
+| T19.6 | todo | P1 | 3 | 0% | |
+| T19.7 | todo | P1 | 4 | 0% | |
+| T19.8 | todo | P1 | 3 | 0% | |
+| T19.9 | todo | P2 | 5 | 0% | |
+| T19.10 | todo | P2 | 4 | 0% | |
+| T19.11 | todo | P2 | 3 | 0% | |
 
-### T4. IDE permissions in `cox-plugin-api`
 
-Split when claimed (500-line task cap). Add the IDE permission set and the manifest tables for language servers and debug adapters, as T1 defines them, to cox's `cox-plugin-api`, its JSON Schemas and its docs. The plugin declares a process; the host spawns it, as with `[[mcp]]` today.
+### T19. macOS IDE views per Figma
 
-The work happens in the cox repository and gets a matching task in cox's `plan.md` when it starts. Blocked on T1 only for the final names; the permission families are already in `research.md` (buffer, LSP, DAP, index, terminal, git) and can be implemented against that list.
+The IDE screens of the Figma file `gNfemQ9NFKFNT2fifxb6sm` (page "Kerf IDE · macOS dark", frames 01 to 14) drawn by the macOS host in AppKit, built from the page "UI Kit" and fed by T18's C ABI (on the creator's word, 2026-11-08: macOS only; Linux and Windows get their own tasks later). The UI Kit holds Kerf's own components plus the general ones merged from the Pyrlyn macOS kit (`h9sViI6qnym6iDdXDZqxcq`), all bound to the "Kerf color" and "Kerf size" variables. Screens with no Rust logic yet (Debugger, Remote host, Settings) get the model and its `kerf_*` C ABI in the same subtask, as T18 did. Each subtask lands as pull requests of at most 500 lines; views are checked by offscreen AppKit tests in `swift test`.
 
-#### T4.1. IDE permission set
+#### T19.2. Window shell and chrome
 
-The buffer, LSP, DAP, index, terminal and git permission classes in `cox-plugin-api`, with validation and schema.
+The frames "Navigation and chrome" and "Surfaces and lists" as AppKit views (window toolbar with run destination pill and activity view, navigator tabs, tree rows, section labels, editor tabs, jump bar, terminal tabs, status bar, banner, sheet, popover, list and settings rows), assembled into the main window around the existing `EditorView`: navigator on the left, editor with tabs and jump bar, bottom panel, status bar. Done when a test builds the window for an opened file and finds every region at the frame's sizes.
 
-#### T4.2. LSP and DAP manifest tables
+#### T19.3. Welcome, Workspace Trust and Restricted mode
 
-`[[language_servers]]` and `[[debug_adapters]]` (names as T1 settles them) in `PluginManifest`, JSON Schema, and the docs. The plugin declares the command; the host spawns it.
+Screens 01 to 03 over `kerf_workspace_*`: recent folders, Open folder, the trust sheet listing what would start with its commands verbatim, restricted mode's banner and revoke. Done when tests drive open, trust, stay restricted and revoke through the views.
 
-### T6. Plugin host on `wasm-plugin-host`
+#### T19.4. Navigator and Open Quickly
 
-`crates/kerf-plugin-host`: load, activate and call WASM plugins through the shared `wasm-plugin-host` crate on cox's ABI (`cox:host/v1`, extism), not a third copy of cox's host. Manifest read without running code, lazy activation, a plugin crash disables the plugin and never the IDE (`docs/architecture.md`). The package layout depends on crates-packages#42. Done when a test plugin loads, activates on its trigger, answers a call, and a trapping plugin is disabled while the host keeps running.
+The file tree and screen 07 over `kerf_navigator_*`: lazy expand, filter, selection opening the file, Open Quickly (⌘⇧O) with match highlighting and keyboard selection. Done when tests drive the tree and a query through the views over a temporary project.
 
-### T8. LSP results in the semantic layer
+#### T19.5. Diagnostics, inline completion and quick fixes
 
-Merge language-server answers into `kerf-semantic` where tree-sitter misses (macro bodies, type-resolved references), tagged by source so tree-sitter results stay the base. Add at least one more tree-sitter language. Done when the recall test on the labelled fixture improves with a scripted language server and a second language has its own fixture.
+Screens 04 to 06: diagnostics from `kerf-lsp` as line tints, issue badges and the issue navigator; inline completion from `kerf-complete` as ghost text accepted with Tab; inspections from `kerf-inspect` with a quick-fix popover. Adds `kerf_diagnostics_*`, `kerf_completion_*` and `kerf_inspect_*` to `kerf-ffi`. Done when tests show a diagnostic, accept a completion and apply a quick fix through the C ABI and the view.
 
-### T11. Language-server and debug-adapter binaries through ketch
+#### T19.6. Plugins and plugin permissions
 
-Install and update language-server and debug-adapter binaries from GitHub releases with checksums, through ketch. Done when a test installs a pinned binary from a local fixture release, rejects a bad checksum, and the core resolves the installed path.
+Screens 08 and 09 over `kerf_plugins_*`: the plugins list with its states and the permission sheet with grant lines verbatim and the digest. Done when tests grant, deny and re-ask through the views.
 
-### T12. UI shell
+#### T19.7. Terminal
 
-The first window. Pick Slint through slint-bindings or Flutter through slint_dart against each other, and record why in `research.md`. Rendering is a trait `kerf-core` defines (`docs/architecture.md` §2.1); the shell implements it in its own crate. Plugin UI and redraw-on-request come in later tasks. Done when a `kerf` binary opens a file, shows it, takes typing, undo and redo through `kerf-core`, and a headless UI test covers that path.
+Screen 10 over `kerf_terminal_*`: the bottom panel's terminal tabs (plugin tabs marked), the VT screen drawn in SF Mono with colours, input, resize and the output-cap notice. Done when a test runs a command in a tab and reads the drawn screen back.
 
-### T13. Remote development
+#### T19.8. Source control
 
-The plugin host and the language servers run next to the code; the UI stays local. First slice: a versioned UI ↔ host protocol and a headless host process that owns buffers and the semantic layer, over any byte stream (stdio, SSH). Every message and queue from the remote side is capped. Done when tests drive open, edit, undo and a symbol query through an in-memory transport and the protocol refuses an unknown major version.
+Screen 12 over `kerf_scm_*`: branch, Staged and Changes groups with checkboxes, the diff of the selected file, the commit message field and Commit. Done when tests stage, unstage and commit in a temporary repository through the views.
 
-### T14. Local code completion
+#### T19.9. Debugger
 
-A fill-in-the-middle endpoint in runa, used by the editor. Chat and agents go through `cox acp`, not here. The runa side is a matching task in runa's `plan.md`; the Kerf side is a completion client with a timeout, a size cap and cancellation on the next edit. Done when Kerf's client passes tests against a fake endpoint and runa's endpoint has its own tests.
+Screen 11 with its model: `kerf-debug`, a Debug Adapter Protocol client started only after the trust check (breakpoints, threads and call stack, variables, continue, step over, into and out, stop; every queue capped), `kerf_debug_*` in `kerf-ffi`, and the debug bar, call stack and variables views with the execution line in the editor. Done when tests drive a stub adapter through the model, the C ABI and the views.
+
+#### T19.10. Remote host
+
+Screen 13 over `kerf-remote`: `kerf_remote_*` in `kerf-ffi` for connecting to a host, its status and limits, and opening its folder, and the remote host sheet and status. Done when tests connect to the headless host in-process and open a folder through the views.
+
+#### T19.11. Settings · Editor
+
+Screen 14 with its model: `kerf-settings`, the editor settings stored outside the repository (font, size, theme following Xcode's, tab width, and the rest the frame shows), `kerf_settings_*` in `kerf-ffi`, and the Settings window with its sidebar. Done when tests change each setting through the view and read it back after a reload.
+
+### T17. Linux host on GTK 4
+
+The Linux host for the UI shell (from `roadmap.md`, approved with T12's native direction): a GTK 4 window over T12's C ABI with the Slint editor surface from T16, looking like GNOME Text Editor. Done when the Linux app opens a file, shows it in the Slint-drawn view, takes typing, selection, undo and redo through `kerf-core`, takes input-method text through GTK, draws a GTK-style caret, and headless tests of that path run in CI on `ubuntu-latest`.
+
+The creator's choices (2026-10-20): the host is Rust on gtk4-rs calling `kerf-ffi`'s C functions; the look is GNOME Text Editor's on plain GTK 4 (no libadwaita).
+
+Split when claimed (500-line task cap) into three stacked pull requests. Research for all three is in `research.md` §7, "Linux host (T17)". Locally the Linux tests run in a Lima VM from `template:ubuntu-24.04` (GTK 4.14, as on the CI runner).
+
+#### T17.2. Editor view widget
+
+`EditorView`, a `GtkWidget` subclass: `kerf_view_*` draws into a `GdkMemoryTexture` shown in the widget's snapshot; keys through a key controller with a `GtkIMMulticontext` (commits as typed, no inline preedit); GTK's caret over the frame with GtkTextView's blink, hidden over a selection; the look re-applied on theme and font changes. Done when tests under Xvfb type through the input method and keys, select, undo, redo and read the frame's pixels and the caret back.
+
+#### T17.3. Linux app window
+
+`kerf-gtk` binary: a `GtkApplication` that opens files from the command line and an Open dialog, one window per file with a header bar (Open, main menu with Undo, Redo, Select All) and GNOME's shortcuts. Done when a test builds the window for an opened file and drives its actions.
 
 ### T15. Mobile plugin backend
 
 An interpreter backend (wasm3, WAMR or a maintained pure-Rust interpreter, chosen against each other) behind the same host API, for iOS and Android where wasmtime cannot JIT. Depends on T6. Done when the T6 plugin tests pass unchanged against the interpreter backend on the desktop host, and the choice and its limits are recorded in `research.md`.
+
+Plan (approved by the creator: wasmtime's Pulley interpreter through a `pulley` feature of the shared host):
+
+1. pyrlyn/crates T20.6 (pyrlyn/crates#107): feature `pulley` on `wasm-plugin-host` and `plugwright-extism` hands extism a `wasmtime::Config` targeting Pulley; their suites pass with it on.
+2. Kerf: bump the `wasm-plugin-host` git pin to the merged commit; `kerf-plugin` feature `interpreter` forwards to `wasm-plugin-host/pulley`, and iOS and Android targets turn it on.
+3. CI runs `cargo test -p kerf-plugin --features interpreter` beside the default run; `crates/kerf-plugin/tests/plugins.rs` stays unchanged.
+4. `research.md` §8: candidates with primary sources, the choice and its limits; `toolchain.md` row.

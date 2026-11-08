@@ -17,6 +17,9 @@ toml = { workspace = true }
 [dev-dependencies]
 config-schema = { workspace = true }
 schemars = { workspace = true }
+# Unused in code: pins the workspace `preserve_order` feature into this
+# crate's own test builds, so the committed schema has one key order.
+serde_json = { workspace = true }
 tempfile = { workspace = true }
 
 [lints.rust]

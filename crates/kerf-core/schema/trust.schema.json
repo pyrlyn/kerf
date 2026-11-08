@@ -7,10 +7,10 @@
     "roots": {
       "description": "Absolute folders the user trusts; each covers its subfolders.",
       "type": "array",
-      "default": [],
       "items": {
         "type": "string"
-      }
+      },
+      "default": []
     }
   },
   "additionalProperties": false
