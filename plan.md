@@ -10,7 +10,7 @@ An IDE with a small Rust core and sandboxed WASM plugins. Language servers and d
 | T15 | todo | P3 | 5 | 0% | |
 | T17.2 | in progress | P1 | 4 | 60% | Claude / opus-5.5 |
 | T17.3 | in progress | P1 | 2 | 60% | Claude / opus-5.5 |
-| T19.1 | in progress | P1 | 3 | 5% | Claude / opus-5.5 |
+| T19.1 | in progress | P1 | 3 | 20% | Claude / opus-5.5 |
 | T19.2 | todo | P1 | 4 | 0% | |
 | T19.3 | todo | P1 | 3 | 0% | |
 | T19.4 | todo | P1 | 3 | 0% | |
