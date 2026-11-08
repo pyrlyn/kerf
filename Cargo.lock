@@ -3401,6 +3401,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "kerf-workspace"
+version = "0.0.0"
+dependencies = [
+ "config-schema",
+ "fs-kit",
+ "kerf-core",
+ "kerf-plugin",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 1.1.8+spec-1.1.0",
+ "wasm-plugin-host",
+]
+
+[[package]]
 name = "keyboard-types"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
