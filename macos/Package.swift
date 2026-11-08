@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-kerf-Royalty-Free
 // Licensed under GPL-3.0 or later, or under the royalty-free licence in LICENSE-ROYALTY-FREE.md
 
-// The macOS host: a C module over kerf.h, the editor view in KerfKit, and
-// the AppKit app. Build the Rust library first: `cargo build -p kerf-ffi`.
+// The macOS host: a C module over kerf.h, the editor view in KerfKit, the
+// UI Kit in KerfUI, and the AppKit app. Build the Rust library first: `cargo build -p kerf-ffi`.
 
 import Foundation
 import PackageDescription
@@ -26,6 +26,9 @@ let package = Package(
   ],
   targets: [
     .systemLibrary(name: "CKerf", path: "Sources/CKerf"),
+    // The Figma UI Kit as AppKit views; no Rust, so its tests need no build of
+    // the static library.
+    .target(name: "KerfUI"),
     .target(
       name: "KerfKit",
       dependencies: ["CKerf"],
@@ -42,7 +45,8 @@ let package = Package(
         .linkedLibrary("z"),
       ]
     ),
-    .executableTarget(name: "Kerf", dependencies: ["KerfKit"]),
+    .executableTarget(name: "Kerf", dependencies: ["KerfKit", "KerfUI"]),
     .testTarget(name: "KerfKitTests", dependencies: ["KerfKit", "CKerf"]),
+    .testTarget(name: "KerfUITests", dependencies: ["KerfUI"]),
   ]
 )
