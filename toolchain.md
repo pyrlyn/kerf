@@ -47,6 +47,8 @@
 | `vt100` | Cargo (workspace dep) | `kerf-terminal`: the VT screen model (cells, colours, attributes, cursor, bounded scrollback) with no event loop or renderer | https://crates.io/crates/vt100 |
 | `ureq` | Cargo (workspace dep) | `kerf-complete`: blocking HTTP for fill-in-the-middle requests on a worker thread; whole-call timeout and body limit built in, no async runtime; gzip off so the limit caps decoded bytes | https://crates.io/crates/ureq |
 | `httpmock` | Cargo (workspace dev dep) | `kerf-complete` tests: a fake `/v1/infill` with per-mock delays, bodies and call counts (timeout, size cap, cancellation) | https://crates.io/crates/httpmock |
+| `ignore` | Cargo (workspace dep) | `kerf-navigator`: folder listings and the project file list that honour `.gitignore`, `.ignore` and git excludes, ripgrep's walker | https://crates.io/crates/ignore |
+| `nucleo-matcher` | Cargo (workspace dep, `unicode-segmentation` off) | `kerf-navigator`: Open Quickly's fuzzy scores and match positions, Helix's matcher without `nucleo`'s worker pool | https://crates.io/crates/nucleo-matcher |
 
 ## Linkers
 

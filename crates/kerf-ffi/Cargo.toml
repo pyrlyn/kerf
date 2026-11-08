@@ -15,8 +15,14 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [dependencies]
 # Workspace versions live in the root `[workspace.dependencies]`.
 kerf-core = { workspace = true }
+kerf-navigator = { workspace = true }
+kerf-semantic = { workspace = true }
 kerf-slint = { workspace = true }
 kerf-terminal = { workspace = true }
+kerf-workspace = { workspace = true }
+# The workspace state crosses the C ABI as one JSON snapshot.
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 cbindgen = { workspace = true }

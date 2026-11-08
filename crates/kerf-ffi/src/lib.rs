@@ -15,8 +15,10 @@
 // Unit tests assert with `expect`/`unwrap`; the deny list is for shipped code.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
+pub mod navigator;
 mod terminal;
 mod view;
+pub mod workspace;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;

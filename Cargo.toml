@@ -86,6 +86,14 @@ portable-pty = "0.9.0"
 # attributes, cursor and a bounded scrollback, with no event loop or renderer
 # (`alacritty_terminal` brings its own event loop and config).
 vt100 = "0.18.1"
+# Ignore-aware directory listing for `kerf-navigator` (ripgrep's walker):
+# `.gitignore`, `.ignore` and git excludes, read from parent folders too.
+ignore = "0.4.34"
+# Fuzzy scoring with match positions for Open Quickly (Helix's matcher). Only
+# the matcher: `nucleo`'s worker pool suits a live picker, not a C call that
+# returns ranked hits. No `unicode-segmentation`: match positions then count
+# chars, not graphemes, so they map straight to byte ranges for highlighting.
+nucleo-matcher = { version = "0.3.1", default-features = false, features = ["unicode-normalization", "unicode-casefold"] }
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
 # The extism plugin engine shared with cox and scull (worker thread, lanes,
@@ -100,12 +108,18 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 # The index the inspection runner (`kerf-inspect`) hands to plugins, and the
 # index the LSP end-to-end test merges into.
 kerf-semantic = { path = "crates/kerf-semantic" }
+# The file tree and Open Quickly model `kerf-ffi` exposes to native hosts.
+kerf-navigator = { path = "crates/kerf-navigator" }
 # The Slint editor surface `kerf-ffi` exposes to native hosts.
 kerf-slint = { path = "crates/kerf-slint" }
 # The integrated terminals `kerf-ffi` exposes to native hosts.
 kerf-terminal = { path = "crates/kerf-terminal" }
 # The C ABI the Linux host (`kerf-gtk`) calls.
 kerf-ffi = { path = "crates/kerf-ffi" }
+# Manifest reading for the Workspace Trust prompt in `kerf-workspace`.
+kerf-plugin = { path = "crates/kerf-plugin" }
+# The Welcome screen and Workspace Trust model `kerf-ffi` exposes to hosts.
+kerf-workspace = { path = "crates/kerf-workspace" }
 # GTK 4 for the Linux host (`kerf-gtk`, research.md §7): the toolkit GNOME's
 # own apps use, through gtk-rs's maintained bindings. `v4_14`: Ubuntu 24.04's
 # GTK, the oldest the CI runner and the Lima test VM have.
