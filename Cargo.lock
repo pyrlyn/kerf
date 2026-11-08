@@ -3363,6 +3363,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kerf-plugin-manager"
+version = "0.0.0"
+dependencies = [
+ "kerf-plugin",
+ "kerf-plugin-lock",
+ "tempfile",
+ "thiserror 2.0.21",
+ "wasm-plugin-host",
+]
+
+[[package]]
 name = "kerf-remote"
 version = "0.0.0"
 dependencies = [

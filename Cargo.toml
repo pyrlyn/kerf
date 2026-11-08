@@ -96,6 +96,12 @@ kerf-semantic = { path = "crates/kerf-semantic" }
 kerf-slint = { path = "crates/kerf-slint" }
 # The C ABI the Linux host (`kerf-gtk`) calls.
 kerf-ffi = { path = "crates/kerf-ffi" }
+# The plugin host's manifest parser and limits, and the lockfile check, that
+# the plugins screen model (`kerf-plugin-manager`) builds on.
+kerf-plugin = { path = "crates/kerf-plugin" }
+kerf-plugin-lock = { path = "crates/kerf-plugin-lock" }
+# The plugins screen model `kerf-ffi` exposes to native hosts.
+kerf-plugin-manager = { path = "crates/kerf-plugin-manager" }
 # GTK 4 for the Linux host (`kerf-gtk`, research.md §7): the toolkit GNOME's
 # own apps use, through gtk-rs's maintained bindings. `v4_14`: Ubuntu 24.04's
 # GTK, the oldest the CI runner and the Lima test VM have.
