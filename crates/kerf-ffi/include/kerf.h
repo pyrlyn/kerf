@@ -57,6 +57,36 @@
 #define KERF_COMMAND_SELECT_RIGHT 6
 
 /**
+ * Open a collapsed folder, listing it the first time.
+ */
+#define KERF_NAVIGATOR_EXPAND 0
+
+/**
+ * Close an expanded folder; a selection inside moves to it.
+ */
+#define KERF_NAVIGATOR_COLLAPSE 1
+
+/**
+ * Select the row.
+ */
+#define KERF_NAVIGATOR_SELECT 2
+
+/**
+ * A row's file name, or a hit's label (symbol name or relative path).
+ */
+#define KERF_NAVIGATOR_TEXT_NAME 0
+
+/**
+ * The path relative to the project root.
+ */
+#define KERF_NAVIGATOR_TEXT_PATH 1
+
+/**
+ * A symbol hit's kind (`function`, `class`, …); empty otherwise.
+ */
+#define KERF_NAVIGATOR_TEXT_DETAIL 2
+
+/**
  * What a call did. Every function returns one; out-parameters are written
  * only on `KERF_STATUS_OK`.
  */
@@ -114,9 +144,76 @@ typedef enum KerfStatus {
 typedef struct KerfEditor KerfEditor;
 
 /**
+ * A project's navigator and Open Quickly. Opaque to the host.
+ */
+typedef struct KerfNavigator KerfNavigator;
+
+/**
  * A view the editor is drawn into. Opaque to the host.
  */
 typedef struct KerfView KerfView;
+
+/**
+ * One navigator row. Flags are bytes, not `bool`, so any value is defined.
+ */
+typedef struct KerfNavigatorRow {
+  /**
+   * Indent level; top-level rows are 0.
+   */
+  uint32_t depth;
+  /**
+   * Non-zero for a folder.
+   */
+  uint8_t folder;
+  /**
+   * Non-zero when the folder's disclosure is open.
+   */
+  uint8_t expanded;
+  /**
+   * Non-zero for the selected row.
+   */
+  uint8_t selected;
+  /**
+   * Non-zero when the folder's listing hit a cap.
+   */
+  uint8_t truncated;
+} KerfNavigatorRow;
+
+/**
+ * One Open Quickly hit, best first.
+ */
+typedef struct KerfQuickHit {
+  /**
+   * A symbol's 0-based line; 0 for a file.
+   */
+  size_t line;
+  /**
+   * Match score; higher is better.
+   */
+  uint32_t score;
+  /**
+   * Non-zero for a symbol, zero for a file.
+   */
+  uint8_t symbol;
+  /**
+   * Non-zero for the selected hit.
+   */
+  uint8_t selected;
+} KerfQuickHit;
+
+/**
+ * A half-open range of UTF-8 byte offsets.
+ */
+typedef struct KerfByteRange {
+  /**
+   * First byte.
+   */
+  size_t start;
+  /**
+   * One past the last byte.
+   */
+  size_t end;
+} KerfByteRange;
 
 /**
  * The editor's look, in logical points (`kerf_slint::Theme`). Colours are
@@ -288,6 +385,163 @@ enum KerfStatus kerf_editor_copy_text(struct KerfEditor *ed,
                                       uint8_t *buf,
                                       size_t cap,
                                       size_t *out_len);
+
+/**
+ * A navigator over the folder at `root` (`root_len` bytes of UTF-8), its
+ * top level listed, in `*out`. Free it with `kerf_navigator_free`.
+ *
+ * # Safety
+ *
+ * `root` points to `root_len` readable bytes; `out` is valid for a write of
+ * one pointer.
+ */
+enum KerfStatus kerf_navigator_open(const uint8_t *root,
+                                    size_t root_len,
+                                    struct KerfNavigator **out);
+
+/**
+ * Free a navigator. Null is ignored.
+ *
+ * # Safety
+ *
+ * `nav` is null or a live handle not used again after this call.
+ */
+void kerf_navigator_free(struct KerfNavigator *nav);
+
+/**
+ * Copy the visible rows, top to bottom, into `buf` (`cap` rows) and their
+ * count into `*out_len`; sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `buf` is null or valid for `cap` rows of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_navigator_rows(struct KerfNavigator *nav,
+                                    struct KerfNavigatorRow *buf,
+                                    size_t cap,
+                                    size_t *out_len);
+
+/**
+ * Copy one `KERF_NAVIGATOR_TEXT_*` of row `row` as UTF-8 into `buf`;
+ * sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * As for `kerf_navigator_rows`, with `buf` valid for `cap` bytes.
+ */
+enum KerfStatus kerf_navigator_row_text(struct KerfNavigator *nav,
+                                        size_t row,
+                                        uint32_t field,
+                                        uint8_t *buf,
+                                        size_t cap,
+                                        size_t *out_len);
+
+/**
+ * Run one `KERF_NAVIGATOR_EXPAND`/`_COLLAPSE`/`_SELECT` on row `row`.
+ * `KERF_STATUS_NOTHING` when it had no effect, `KERF_STATUS_IO` when the
+ * folder cannot be listed.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle.
+ */
+enum KerfStatus kerf_navigator_row_command(struct KerfNavigator *nav, size_t row, uint32_t command);
+
+/**
+ * Show only rows whose name contains `text` (UTF-8, ignoring case) and
+ * their folders, across the whole project; empty text clears the filter.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `utf8` points to `len` readable bytes.
+ */
+enum KerfStatus kerf_navigator_set_filter(struct KerfNavigator *nav,
+                                          const uint8_t *utf8,
+                                          size_t len);
+
+/**
+ * Parse the file at `path` (UTF-8, relative to the root) so Open Quickly
+ * finds its symbols; again after it changes. `KERF_STATUS_UNSUPPORTED` for
+ * a language Kerf does not parse, `KERF_STATUS_OUT_OF_RANGE` for a path
+ * that is absolute or climbs out with `..`.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `path` points to `len` readable bytes.
+ */
+enum KerfStatus kerf_navigator_index_file(struct KerfNavigator *nav,
+                                          const uint8_t *path,
+                                          size_t len);
+
+/**
+ * Rank the project's files and indexed symbols against `query` (UTF-8,
+ * ignoring case), keep the best and select the first; the hit count goes
+ * in `*out_count`. An empty query has no hits.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `query` points to `len` readable bytes;
+ * `out_count` is valid for a write.
+ */
+enum KerfStatus kerf_navigator_quick_query(struct KerfNavigator *nav,
+                                           const uint8_t *query,
+                                           size_t len,
+                                           size_t *out_count);
+
+/**
+ * Copy the last query's hits into `buf` (`cap` hits) and their count into
+ * `*out_len`; sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `buf` is null or valid for `cap` hits of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_navigator_hits(struct KerfNavigator *nav,
+                                    struct KerfQuickHit *buf,
+                                    size_t cap,
+                                    size_t *out_len);
+
+/**
+ * Copy one `KERF_NAVIGATOR_TEXT_*` of hit `index` as UTF-8 into `buf`;
+ * sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * As for `kerf_navigator_row_text`.
+ */
+enum KerfStatus kerf_navigator_hit_text(struct KerfNavigator *nav,
+                                        size_t index,
+                                        uint32_t field,
+                                        uint8_t *buf,
+                                        size_t cap,
+                                        size_t *out_len);
+
+/**
+ * Copy the matched byte ranges of hit `index`'s name text into `buf`
+ * (`cap` ranges), for highlighting; sizing works as in `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle; `buf` is null or valid for `cap` ranges of
+ * writes; `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_navigator_hit_ranges(struct KerfNavigator *nav,
+                                          size_t index,
+                                          struct KerfByteRange *buf,
+                                          size_t cap,
+                                          size_t *out_len);
+
+/**
+ * Move Open Quickly's selection by `delta` hits (arrow and page keys),
+ * stopping at the ends. `KERF_STATUS_NOTHING` when it did not move.
+ *
+ * # Safety
+ *
+ * `nav` is a live handle.
+ */
+enum KerfStatus kerf_navigator_quick_move(struct KerfNavigator *nav, int32_t delta);
 
 /**
  * A view of `width`×`height` physical pixels at `scale` pixels per point
