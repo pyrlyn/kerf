@@ -17,6 +17,7 @@
 
 pub mod navigator;
 pub mod plugins;
+pub mod scm;
 mod terminal;
 mod view;
 pub mod workspace;

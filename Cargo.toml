@@ -78,6 +78,12 @@ ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 # Fake HTTP endpoint for `kerf-complete`'s tests (dev only): per-mock delays,
 # bodies and hit counts for the timeout, size-cap and cancellation cases.
 httpmock = "0.8.3"
+# Git for `kerf-scm`: status, index stage and unstage, diff hunks and commit
+# in-process. gix has no tree-from-index or `add` yet, and the `git` CLI
+# would run the repository's hooks and config-driven commands. Default
+# features off: no network, so no push; libgit2 vendored for one version on
+# every host.
+git2 = { version = "0.21.0", default-features = false, features = ["vendored-libgit2"] }
 # PTY per terminal tab for `kerf-terminal`: wezterm's crate, the one that also
 # drives ConPTY on Windows behind the same API; spawns a `CommandBuilder` in a
 # working directory the trust check chose.
@@ -112,6 +118,8 @@ kerf-semantic = { path = "crates/kerf-semantic" }
 kerf-navigator = { path = "crates/kerf-navigator" }
 # The Slint editor surface `kerf-ffi` exposes to native hosts.
 kerf-slint = { path = "crates/kerf-slint" }
+# The source control model `kerf-ffi` exposes to native hosts.
+kerf-scm = { path = "crates/kerf-scm" }
 # The integrated terminals `kerf-ffi` exposes to native hosts.
 kerf-terminal = { path = "crates/kerf-terminal" }
 # The C ABI the Linux host (`kerf-gtk`) calls.
