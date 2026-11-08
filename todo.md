@@ -3,7 +3,6 @@
 - T15. Mobile plugin backend
 - T17.2. Editor view widget
 - T17.3. Linux app window
-- T19.1. UI Kit foundations and controls
 - T19.2. Window shell and chrome
 - T19.3. Welcome, Workspace Trust and Restricted mode
 - T19.4. Navigator and Open Quickly

@@ -93,6 +93,8 @@ public final class KerfSelect: NSPopUpButton {
   required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
   public override var isFlipped: Bool { true }
+  /// The box is drawn edge to edge: no inset for AppKit's bezel shadow.
+  public override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsets() }
 
   public override var intrinsicContentSize: NSSize {
     let text = itemTitles.map { Drawing.width($0, .body) }.max() ?? 0
