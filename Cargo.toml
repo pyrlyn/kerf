@@ -78,6 +78,14 @@ ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 # Fake HTTP endpoint for `kerf-complete`'s tests (dev only): per-mock delays,
 # bodies and hit counts for the timeout, size-cap and cancellation cases.
 httpmock = "0.8.3"
+# Ignore-aware directory listing for `kerf-navigator` (ripgrep's walker):
+# `.gitignore`, `.ignore` and git excludes, read from parent folders too.
+ignore = "0.4.34"
+# Fuzzy scoring with match positions for Open Quickly (Helix's matcher). Only
+# the matcher: `nucleo`'s worker pool suits a live picker, not a C call that
+# returns ranked hits. No `unicode-segmentation`: match positions then count
+# chars, not graphemes, so they map straight to byte ranges for highlighting.
+nucleo-matcher = { version = "0.3.1", default-features = false, features = ["unicode-normalization", "unicode-casefold"] }
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
 # The extism plugin engine shared with cox and scull (worker thread, lanes,
@@ -92,6 +100,8 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 # The index the inspection runner (`kerf-inspect`) hands to plugins, and the
 # index the LSP end-to-end test merges into.
 kerf-semantic = { path = "crates/kerf-semantic" }
+# The file tree and Open Quickly model `kerf-ffi` exposes to native hosts.
+kerf-navigator = { path = "crates/kerf-navigator" }
 # The Slint editor surface `kerf-ffi` exposes to native hosts.
 kerf-slint = { path = "crates/kerf-slint" }
 # The C ABI the Linux host (`kerf-gtk`) calls.

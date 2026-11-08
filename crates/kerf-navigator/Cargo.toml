@@ -1,0 +1,30 @@
+[package]
+name = "kerf-navigator"
+description = "Kerf's project navigator and Open Quickly: a lazy, capped, ignore-aware file tree and fuzzy ranking of files and symbols"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace versions live in the root `[workspace.dependencies]`.
+ignore = { workspace = true }
+kerf-semantic = { workspace = true }
+nucleo-matcher = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
