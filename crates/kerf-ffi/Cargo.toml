@@ -15,6 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [dependencies]
 # Workspace versions live in the root `[workspace.dependencies]`.
 kerf-core = { workspace = true }
+kerf-plugin-manager = { workspace = true }
 kerf-navigator = { workspace = true }
 kerf-semantic = { workspace = true }
 kerf-slint = { workspace = true }

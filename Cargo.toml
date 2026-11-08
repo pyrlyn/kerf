@@ -116,8 +116,14 @@ kerf-slint = { path = "crates/kerf-slint" }
 kerf-terminal = { path = "crates/kerf-terminal" }
 # The C ABI the Linux host (`kerf-gtk`) calls.
 kerf-ffi = { path = "crates/kerf-ffi" }
-# Manifest reading for the Workspace Trust prompt in `kerf-workspace`.
+# Manifest reading for the Workspace Trust prompt in `kerf-workspace`, and the
+# plugin host's manifest parser and limits the plugins screen model
+# (`kerf-plugin-manager`) builds on.
 kerf-plugin = { path = "crates/kerf-plugin" }
+# The lockfile check the plugins screen model builds on.
+kerf-plugin-lock = { path = "crates/kerf-plugin-lock" }
+# The plugins screen model `kerf-ffi` exposes to native hosts.
+kerf-plugin-manager = { path = "crates/kerf-plugin-manager" }
 # The Welcome screen and Workspace Trust model `kerf-ffi` exposes to hosts.
 kerf-workspace = { path = "crates/kerf-workspace" }
 # GTK 4 for the Linux host (`kerf-gtk`, research.md §7): the toolkit GNOME's

@@ -1,0 +1,30 @@
+[package]
+name = "kerf-plugin-manager"
+description = "Kerf's plugins screen and permission prompt as a model: each plugin's state, its grant lines bound to the package digest, and the lockfile check, for every native host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace versions live in the root `[workspace.dependencies]`.
+kerf-plugin = { workspace = true }
+kerf-plugin-lock = { workspace = true }
+thiserror = { workspace = true }
+wasm-plugin-host = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

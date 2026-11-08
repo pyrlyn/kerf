@@ -3364,6 +3364,7 @@ dependencies = [
  "cbindgen",
  "kerf-core",
  "kerf-navigator",
+ "kerf-plugin-manager",
  "kerf-semantic",
  "kerf-slint",
  "kerf-terminal",
@@ -3439,6 +3440,17 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "toml 1.1.8+spec-1.1.0",
+]
+
+[[package]]
+name = "kerf-plugin-manager"
+version = "0.0.0"
+dependencies = [
+ "kerf-plugin",
+ "kerf-plugin-lock",
+ "tempfile",
+ "thiserror 2.0.21",
+ "wasm-plugin-host",
 ]
 
 [[package]]
