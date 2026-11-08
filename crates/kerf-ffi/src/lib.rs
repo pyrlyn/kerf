@@ -16,6 +16,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
 mod view;
+pub mod workspace;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
