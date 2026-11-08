@@ -69,11 +69,9 @@ final class ActionCounter: NSObject {
     let widths = ["General", "Editor", "Keys"].map { Drawing.width($0, .bodyEmphasized) + 24 }
     #expect(control.segmentFrames.map(\.width) == widths)
     #expect(control.frame.size == NSSize(width: widths.reduce(0, +) + 2 * 4, height: 28))
-    // The selected segment's white fill-strong lies over the track's white
-    // fill: the alphas compose as a + b(1 - a).
-    let (track, segment) = (0x14, 0x24)
-    let alpha = segment + track * (255 - segment) / 255
-    #expect(close(sample(render(control), 6, 14), [alpha, alpha, alpha, alpha]))
+    // The selected segment's fill lies over the track's fill.
+    let segment = over(KerfColor.Background.fillStrong, KerfColor.Background.fill)
+    #expect(close(sample(render(control), 6, 14), segment))
   }
 
   @Test func clicksAndArrowsMoveTheSelection() {

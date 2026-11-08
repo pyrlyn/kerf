@@ -22,6 +22,13 @@ func premultiplied(_ color: NSColor) -> [Int] {
   return b.prefix(3).map { ($0 * b[3] + 127) / 255 } + [b[3]]
 }
 
+/// Premultiplied bytes of `top` drawn over `bottom` on a transparent pixel:
+/// a translucent stroke on a translucent fill, say.
+func over(_ top: NSColor, _ bottom: NSColor) -> [Int] {
+  let (t, b) = (premultiplied(top), premultiplied(bottom))
+  return zip(t, b).map { $0 + $1 * (255 - t[3]) / 255 }
+}
+
 func close(_ a: [Int], _ b: [Int], within tolerance: Int = 2) -> Bool {
   zip(a, b).allSatisfy { abs($0 - $1) <= tolerance }
 }
