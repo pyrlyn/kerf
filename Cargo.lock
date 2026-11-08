@@ -3343,6 +3343,9 @@ dependencies = [
  "kerf-navigator",
  "kerf-semantic",
  "kerf-slint",
+ "kerf-workspace",
+ "serde",
+ "serde_json",
  "tempfile",
 ]
 
@@ -3450,6 +3453,23 @@ dependencies = [
  "slint-bindings-core",
  "slint-build",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "kerf-workspace"
+version = "0.0.0"
+dependencies = [
+ "config-schema",
+ "fs-kit",
+ "kerf-core",
+ "kerf-plugin",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 1.1.8+spec-1.1.0",
+ "wasm-plugin-host",
 ]
 
 [[package]]

@@ -17,6 +17,7 @@
 
 pub mod navigator;
 mod view;
+pub mod workspace;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;

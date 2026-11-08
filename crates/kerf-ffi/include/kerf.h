@@ -154,6 +154,11 @@ typedef struct KerfNavigator KerfNavigator;
 typedef struct KerfView KerfView;
 
 /**
+ * Recent folders, trust and open folders. Opaque to the host.
+ */
+typedef struct KerfWorkspace KerfWorkspace;
+
+/**
  * One navigator row. Flags are bytes, not `bool`, so any value is defined.
  */
 typedef struct KerfNavigatorRow {
@@ -629,6 +634,141 @@ enum KerfStatus kerf_view_read_rgba(struct KerfView *view,
                                     uint8_t *buf,
                                     size_t cap,
                                     size_t *out_len);
+
+/**
+ * A workspace model in `*out`, reading `trust.toml` and `recent.toml` from
+ * `config_dir` (empty: Kerf's folder in the OS config directory) and user
+ * plugins from `<plugin_home>/plugins/`. Damaged files become notices in
+ * the state, never a failure; a relative folder is `KERF_STATUS_IO`. Free
+ * it with `kerf_workspace_free`.
+ *
+ * # Safety
+ *
+ * `config_dir` points to `config_dir_len` readable bytes, `plugin_home` to
+ * `plugin_home_len`; `out` is valid for a write of one pointer.
+ */
+enum KerfStatus kerf_workspace_new(const uint8_t *config_dir,
+                                   size_t config_dir_len,
+                                   const uint8_t *plugin_home,
+                                   size_t plugin_home_len,
+                                   struct KerfWorkspace **out);
+
+/**
+ * Free a workspace model. Null is ignored.
+ *
+ * # Safety
+ *
+ * `ws` is null or a live handle not used again after this call.
+ */
+void kerf_workspace_free(struct KerfWorkspace *ws);
+
+/**
+ * Open the folder at `path` and remember it; `*out_trusted` is 1 when it
+ * opened trusted, 0 when restricted (the state then asks).
+ * `KERF_STATUS_IO` when the folder cannot be resolved,
+ * `KERF_STATUS_TOO_LARGE` when too many folders are open.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes;
+ * `out_trusted` is valid for a write.
+ */
+enum KerfStatus kerf_workspace_open(struct KerfWorkspace *ws,
+                                    const uint8_t *path,
+                                    size_t path_len,
+                                    uint8_t *out_trusted);
+
+/**
+ * The user's "Trust folder" for `path`.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_workspace_trust(struct KerfWorkspace *ws,
+                                     const uint8_t *path,
+                                     size_t path_len);
+
+/**
+ * The user's "Stay restricted" for the open folder `path`.
+ * `KERF_STATUS_NOTHING` when it is not open.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_workspace_stay_restricted(struct KerfWorkspace *ws,
+                                               const uint8_t *path,
+                                               size_t path_len);
+
+/**
+ * Revoke trust in `path` and every trusted root inside it.
+ * `*out_stop` gets the number of open folders that lost trust; what each
+ * must stop is in `kerf_workspace_stop_json` until the next revoke.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes;
+ * `out_stop` is valid for a write.
+ */
+enum KerfStatus kerf_workspace_revoke(struct KerfWorkspace *ws,
+                                      const uint8_t *path,
+                                      size_t path_len,
+                                      size_t *out_stop);
+
+/**
+ * Close the open folder `path`. `KERF_STATUS_NOTHING` when it is not open.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_workspace_close(struct KerfWorkspace *ws,
+                                     const uint8_t *path,
+                                     size_t path_len);
+
+/**
+ * Remove `path` from the recent folders. `KERF_STATUS_NOTHING` when it
+ * was not listed.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_workspace_forget(struct KerfWorkspace *ws,
+                                      const uint8_t *path,
+                                      size_t path_len);
+
+/**
+ * Copy the state as UTF-8 JSON into `buf`: `recent` (path, host, chip
+ * `trusted` / `restricted` / `remote`), `folders` (root, mode, asking, and
+ * the prompt's items with kind, plugin, name, command and args verbatim)
+ * and `notices`. Sizing as for `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `buf` is null or valid for `cap` bytes of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_workspace_state_json(struct KerfWorkspace *ws,
+                                          uint8_t *buf,
+                                          size_t cap,
+                                          size_t *out_len);
+
+/**
+ * Copy the last revoke's report as UTF-8 JSON: `roots` removed and `stop`,
+ * one entry per folder with the items to stop. Empty before any revoke.
+ * Sizing as for `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `ws` is a live handle; `buf` is null or valid for `cap` bytes of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_workspace_stop_json(struct KerfWorkspace *ws,
+                                         uint8_t *buf,
+                                         size_t cap,
+                                         size_t *out_len);
 
 #ifdef __cplusplus
 }  // extern "C"
