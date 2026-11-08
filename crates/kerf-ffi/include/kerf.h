@@ -57,6 +57,17 @@
 #define KERF_COMMAND_SELECT_RIGHT 6
 
 /**
+ * The "Staged" group: HEAD against the index.
+ */
+#define KERF_SCM_GROUP_STAGED 0
+
+/**
+ * The "Changes" group: the index against the working tree, untracked files
+ * included.
+ */
+#define KERF_SCM_GROUP_CHANGES 1
+
+/**
  * What a call did. Every function returns one; out-parameters are written
  * only on `KERF_STATUS_OK`.
  */
@@ -109,14 +120,176 @@ typedef enum KerfStatus {
 } KerfStatus;
 
 /**
+ * Why the last `kerf_scm_*` call on a handle failed.
+ */
+typedef enum KerfScmError {
+  /**
+   * The last call succeeded, or failed on its arguments before reaching
+   * the repository.
+   */
+  KERF_SCM_ERROR_NONE = 0,
+  /**
+   * No repository holds the folder.
+   */
+  KERF_SCM_ERROR_NOT_A_REPOSITORY = 1,
+  /**
+   * The repository has no working tree.
+   */
+  KERF_SCM_ERROR_BARE = 2,
+  /**
+   * The path is empty, absolute, climbs out with `..`, or is too long.
+   */
+  KERF_SCM_ERROR_BAD_PATH = 3,
+  /**
+   * The commit message is empty once cleaned up.
+   */
+  KERF_SCM_ERROR_EMPTY_MESSAGE = 4,
+  /**
+   * The commit message is over its cap.
+   */
+  KERF_SCM_ERROR_MESSAGE_TOO_LARGE = 5,
+  /**
+   * Nothing is staged.
+   */
+  KERF_SCM_ERROR_NOTHING_TO_COMMIT = 6,
+  /**
+   * `user.name` or `user.email` is not configured.
+   */
+  KERF_SCM_ERROR_NO_IDENTITY = 7,
+  /**
+   * A merge, rebase or similar is in progress, or the index has conflicts.
+   */
+  KERF_SCM_ERROR_BUSY = 8,
+  /**
+   * The working tree could not be read.
+   */
+  KERF_SCM_ERROR_IO = 9,
+  /**
+   * libgit2 failed; the message says how.
+   */
+  KERF_SCM_ERROR_GIT = 10,
+} KerfScmError;
+
+/**
+ * The status letter of a file row.
+ */
+typedef enum KerfScmChange {
+  /**
+   * `A`
+   */
+  KERF_SCM_CHANGE_ADDED = 0,
+  /**
+   * `M`
+   */
+  KERF_SCM_CHANGE_MODIFIED = 1,
+  /**
+   * `D`
+   */
+  KERF_SCM_CHANGE_DELETED = 2,
+  /**
+   * `?`
+   */
+  KERF_SCM_CHANGE_UNTRACKED = 3,
+  /**
+   * `U`
+   */
+  KERF_SCM_CHANGE_CONFLICTED = 4,
+} KerfScmChange;
+
+/**
+ * What a diff row is.
+ */
+typedef enum KerfScmRowKind {
+  /**
+   * A `@@ -a,b +c,d @@` hunk header.
+   */
+  KERF_SCM_ROW_KIND_HUNK = 0,
+  /**
+   * An unchanged line.
+   */
+  KERF_SCM_ROW_KIND_CONTEXT = 1,
+  /**
+   * An added line.
+   */
+  KERF_SCM_ROW_KIND_ADDED = 2,
+  /**
+   * A removed line.
+   */
+  KERF_SCM_ROW_KIND_REMOVED = 3,
+} KerfScmRowKind;
+
+/**
  * An editor: one buffer and its cursor. Opaque to the host.
  */
 typedef struct KerfEditor KerfEditor;
 
 /**
+ * A repository and the screen's last snapshot of it. Opaque to the host.
+ */
+typedef struct KerfScm KerfScm;
+
+/**
  * A view the editor is drawn into. Opaque to the host.
  */
 typedef struct KerfView KerfView;
+
+/**
+ * The status `kerf_scm_refresh` read.
+ */
+typedef struct KerfScmSummary {
+  /**
+   * Rows in the "Staged" group.
+   */
+  size_t staged;
+  /**
+   * Rows in the "Changes" group.
+   */
+  size_t changes;
+  /**
+   * Non-zero: rows were dropped at the file cap or for a non-UTF-8 path.
+   */
+  uint8_t truncated;
+  /**
+   * Non-zero: HEAD is detached and the branch is a short commit id.
+   */
+  uint8_t detached;
+} KerfScmSummary;
+
+/**
+ * The diff `kerf_scm_load_diff` read.
+ */
+typedef struct KerfScmDiffInfo {
+  /**
+   * Rows: hunk headers and lines.
+   */
+  size_t rows;
+  /**
+   * Non-zero: binary or too large to diff, so no rows.
+   */
+  uint8_t binary;
+  /**
+   * Non-zero: lines were dropped at the cap or cut.
+   */
+  uint8_t truncated;
+} KerfScmDiffInfo;
+
+/**
+ * One diff row's numbers.
+ */
+typedef struct KerfScmRow {
+  /**
+   * What it is.
+   */
+  enum KerfScmRowKind kind;
+  /**
+   * 1-based old line number; 0 for an added line or a hunk header.
+   */
+  uint32_t old_line;
+  /**
+   * 1-based new line number; 0 for a removed line or a hunk header.
+   */
+  uint32_t new_line;
+} KerfScmRow;
 
 /**
  * The editor's look, in logical points (`kerf_slint::Theme`). Colours are
@@ -288,6 +461,158 @@ enum KerfStatus kerf_editor_copy_text(struct KerfEditor *ed,
                                       uint8_t *buf,
                                       size_t cap,
                                       size_t *out_len);
+
+/**
+ * Open the repository whose working tree holds the folder at `path`
+ * (`path_len` bytes of UTF-8), searching upward, into `*out`. The status
+ * starts empty until `kerf_scm_refresh`. On a refusal, `*out_error`, when
+ * not null, says why.
+ *
+ * # Safety
+ *
+ * `path` points to `path_len` readable bytes; `out` is valid for a write of
+ * one pointer; `out_error` is null or valid for a write.
+ */
+enum KerfStatus kerf_scm_open(const uint8_t *path,
+                              size_t path_len,
+                              struct KerfScm **out,
+                              enum KerfScmError *out_error);
+
+/**
+ * Free a repository handle. Null is ignored.
+ *
+ * # Safety
+ *
+ * `scm` is null or a live handle not used again after this call.
+ */
+void kerf_scm_free(struct KerfScm *scm);
+
+/**
+ * Why the last call on `scm` failed; `KERF_SCM_ERROR_NONE` after a success.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `out` is valid for a write.
+ */
+enum KerfStatus kerf_scm_error(struct KerfScm *scm, enum KerfScmError *out);
+
+/**
+ * The last failure's text as UTF-8, copied as `kerf_editor_copy_text` does;
+ * empty after a success.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `buf` is null or valid for `cap` bytes of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_scm_error_message(struct KerfScm *scm,
+                                       uint8_t *buf,
+                                       size_t cap,
+                                       size_t *out_len);
+
+/**
+ * Read the branch and both groups again, and their sizes into `*out`.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `out` is valid for a write.
+ */
+enum KerfStatus kerf_scm_refresh(struct KerfScm *scm, struct KerfScmSummary *out);
+
+/**
+ * The branch name from the last refresh, copied as `kerf_editor_copy_text`
+ * does.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `buf` is null or valid for `cap` bytes of writes;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_scm_branch(struct KerfScm *scm, uint8_t *buf, size_t cap, size_t *out_len);
+
+/**
+ * Row `index` of a `KERF_SCM_GROUP_*` from the last refresh: its letter in
+ * `*out_change` and its path copied as `kerf_editor_copy_text` does
+ * (`*out_change` is written whenever `*out_len` is).
+ * `KERF_STATUS_OUT_OF_RANGE` past the last row.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `out_change` and `out_len` are valid for a write;
+ * `buf` is null or valid for `cap` bytes of writes.
+ */
+enum KerfStatus kerf_scm_file(struct KerfScm *scm,
+                              uint32_t group_id,
+                              size_t index,
+                              enum KerfScmChange *out_change,
+                              uint8_t *buf,
+                              size_t cap,
+                              size_t *out_len);
+
+/**
+ * Load the diff of `path` (`path_len` bytes of UTF-8, from the working
+ * tree's root) in a `KERF_SCM_GROUP_*`, replacing the last one, and its size
+ * into `*out`.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `path` points to `path_len` readable bytes; `out`
+ * is valid for a write.
+ */
+enum KerfStatus kerf_scm_load_diff(struct KerfScm *scm,
+                                   uint32_t group_id,
+                                   const uint8_t *path,
+                                   size_t path_len,
+                                   struct KerfScmDiffInfo *out);
+
+/**
+ * Row `index` of the loaded diff: its kind and line numbers in `*out_row`
+ * and its text copied as `kerf_editor_copy_text` does (`*out_row` is
+ * written whenever `*out_len` is). `KERF_STATUS_OUT_OF_RANGE` past the last
+ * row.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `out_row` and `out_len` are valid for a write;
+ * `buf` is null or valid for `cap` bytes of writes.
+ */
+enum KerfStatus kerf_scm_diff_row(struct KerfScm *scm,
+                                  size_t index,
+                                  struct KerfScmRow *out_row,
+                                  uint8_t *buf,
+                                  size_t cap,
+                                  size_t *out_len);
+
+/**
+ * Stage `path` (`path_len` bytes of UTF-8, from the working tree's root) as
+ * it is on disk; a deleted file is staged as a deletion. Refresh to see it.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_scm_stage(struct KerfScm *scm, const uint8_t *path, size_t path_len);
+
+/**
+ * Put `path` in the index back as HEAD has it, leaving the file on disk.
+ * Refresh to see it.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `path` points to `path_len` readable bytes.
+ */
+enum KerfStatus kerf_scm_unstage(struct KerfScm *scm, const uint8_t *path, size_t path_len);
+
+/**
+ * Commit the staged files on the current branch with `message` (`len`
+ * bytes of UTF-8). `KERF_STATUS_NOTHING` for an empty message or nothing
+ * staged. Refresh to see it.
+ *
+ * # Safety
+ *
+ * `scm` is a live handle; `message` points to `len` readable bytes.
+ */
+enum KerfStatus kerf_scm_commit(struct KerfScm *scm, const uint8_t *message, size_t len);
 
 /**
  * A view of `width`×`height` physical pixels at `scale` pixels per point

@@ -36,6 +36,10 @@ let package = Package(
         .linkedFramework("CoreFoundation"),
         .linkedFramework("CoreGraphics"),
         .linkedFramework("CoreText"),
+        // What libgit2 (`kerf-scm`) calls into; Cargo cannot pass these to SwiftPM.
+        .linkedFramework("Security"),
+        .linkedLibrary("iconv"),
+        .linkedLibrary("z"),
       ]
     ),
     .executableTarget(name: "Kerf", dependencies: ["KerfKit"]),

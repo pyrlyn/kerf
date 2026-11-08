@@ -3312,7 +3312,9 @@ name = "kerf-ffi"
 version = "0.0.0"
 dependencies = [
  "cbindgen",
+ "git2",
  "kerf-core",
+ "kerf-scm",
  "kerf-slint",
  "tempfile",
 ]
