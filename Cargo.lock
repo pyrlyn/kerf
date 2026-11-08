@@ -3302,6 +3302,9 @@ dependencies = [
  "cbindgen",
  "kerf-core",
  "kerf-slint",
+ "kerf-workspace",
+ "serde",
+ "serde_json",
  "tempfile",
 ]
 
