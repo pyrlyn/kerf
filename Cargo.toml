@@ -78,6 +78,14 @@ ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 # Fake HTTP endpoint for `kerf-complete`'s tests (dev only): per-mock delays,
 # bodies and hit counts for the timeout, size-cap and cancellation cases.
 httpmock = "0.8.3"
+# PTY per terminal tab for `kerf-terminal`: wezterm's crate, the one that also
+# drives ConPTY on Windows behind the same API; spawns a `CommandBuilder` in a
+# working directory the trust check chose.
+portable-pty = "0.9.0"
+# VT screen model for `kerf-terminal`: a parser plus a cell grid with colours,
+# attributes, cursor and a bounded scrollback, with no event loop or renderer
+# (`alacritty_terminal` brings its own event loop and config).
+vt100 = "0.18.1"
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
 # The extism plugin engine shared with cox and scull (worker thread, lanes,
@@ -94,6 +102,8 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 kerf-semantic = { path = "crates/kerf-semantic" }
 # The Slint editor surface `kerf-ffi` exposes to native hosts.
 kerf-slint = { path = "crates/kerf-slint" }
+# The integrated terminals `kerf-ffi` exposes to native hosts.
+kerf-terminal = { path = "crates/kerf-terminal" }
 # The C ABI the Linux host (`kerf-gtk`) calls.
 kerf-ffi = { path = "crates/kerf-ffi" }
 # GTK 4 for the Linux host (`kerf-gtk`, research.md §7): the toolkit GNOME's

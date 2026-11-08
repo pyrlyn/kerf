@@ -57,6 +57,41 @@
 #define KERF_COMMAND_SELECT_RIGHT 6
 
 /**
+ * Bytes of UTF-8 a [`KerfTerminalCell`] holds; a longer grapheme is cut.
+ */
+#define KERF_TERMINAL_CELL_TEXT_BYTES 24
+
+/**
+ * `kerf_terminal_copy_text`: the tab title.
+ */
+#define KERF_TERMINAL_TEXT_TITLE 0
+
+/**
+ * `kerf_terminal_copy_text`: the opening plugin's id, empty for the user.
+ */
+#define KERF_TERMINAL_TEXT_ORIGIN 1
+
+/**
+ * `kerf_terminal_copy_text`: the screen as plain text, rows joined by `\n`.
+ */
+#define KERF_TERMINAL_TEXT_SCREEN 2
+
+/**
+ * `KerfTerminalColor::kind`: the theme's default colour.
+ */
+#define KERF_TERMINAL_COLOR_DEFAULT 0
+
+/**
+ * `KerfTerminalColor::kind`: palette entry `index`.
+ */
+#define KERF_TERMINAL_COLOR_INDEXED 1
+
+/**
+ * `KerfTerminalColor::kind`: the 24-bit colour in `rgb`.
+ */
+#define KERF_TERMINAL_COLOR_RGB 2
+
+/**
  * What a call did. Every function returns one; out-parameters are written
  * only on `KERF_STATUS_OK`.
  */
@@ -106,6 +141,14 @@ typedef enum KerfStatus {
    * Slint is single-threaded.
    */
   KERF_STATUS_WRONG_THREAD = 10,
+  /**
+   * The folder is not trusted; no process was started.
+   */
+  KERF_STATUS_UNTRUSTED = 11,
+  /**
+   * No such id, such as a closed terminal tab.
+   */
+  KERF_STATUS_NOT_FOUND = 12,
 } KerfStatus;
 
 /**
@@ -114,9 +157,113 @@ typedef enum KerfStatus {
 typedef struct KerfEditor KerfEditor;
 
 /**
+ * The open terminal tabs. Opaque to the host.
+ */
+typedef struct KerfTerminals KerfTerminals;
+
+/**
  * A view the editor is drawn into. Opaque to the host.
  */
 typedef struct KerfView KerfView;
+
+/**
+ * A tab's state; everything but its cells and texts.
+ */
+typedef struct KerfTerminalInfo {
+  /**
+   * Screen lines.
+   */
+  uint16_t rows;
+  /**
+   * Screen columns.
+   */
+  uint16_t cols;
+  /**
+   * Cursor line on the live screen.
+   */
+  uint16_t cursor_row;
+  /**
+   * Cursor column on the live screen.
+   */
+  uint16_t cursor_col;
+  /**
+   * Non-zero when the cursor is shown.
+   */
+  uint8_t cursor_visible;
+  /**
+   * Non-zero while the process runs.
+   */
+  uint8_t running;
+  /**
+   * Non-zero when a plugin opened the tab (the "Plugin" chip).
+   */
+  uint8_t from_plugin;
+  /**
+   * The exit code once `running` is 0.
+   */
+  uint32_t exit_code;
+  /**
+   * Rows scrolled back from the live screen.
+   */
+  uint32_t scroll_offset;
+  /**
+   * Rows of history kept, at most `HISTORY_ROWS` (the 4 MiB output cap).
+   */
+  uint32_t history_rows;
+  /**
+   * Bytes read from the process so far.
+   */
+  uint64_t output_bytes;
+  /**
+   * Moves on every change the view must redraw for.
+   */
+  uint64_t revision;
+} KerfTerminalInfo;
+
+/**
+ * A cell colour.
+ */
+typedef struct KerfTerminalColor {
+  /**
+   * `KERF_TERMINAL_COLOR_*`.
+   */
+  uint8_t kind;
+  /**
+   * The palette entry when `kind` is indexed.
+   */
+  uint8_t index;
+  /**
+   * Red, green, blue when `kind` is RGB.
+   */
+  uint8_t rgb[3];
+} KerfTerminalColor;
+
+/**
+ * One screen cell.
+ */
+typedef struct KerfTerminalCell {
+  /**
+   * UTF-8 of the grapheme; `text_len` bytes are used, 0 for a blank.
+   */
+  uint8_t text[KERF_TERMINAL_CELL_TEXT_BYTES];
+  /**
+   * Bytes used in `text`.
+   */
+  uint8_t text_len;
+  /**
+   * `kerf_terminal::attr` bits: 1 bold, 2 dim, 4 italic, 8 underline,
+   * 16 inverse, 32 wide, 64 the right half of a wide character.
+   */
+  uint8_t attrs;
+  /**
+   * Foreground.
+   */
+  struct KerfTerminalColor fg;
+  /**
+   * Background.
+   */
+  struct KerfTerminalColor bg;
+} KerfTerminalCell;
 
 /**
  * The editor's look, in logical points (`kerf_slint::Theme`). Colours are
@@ -288,6 +435,155 @@ enum KerfStatus kerf_editor_copy_text(struct KerfEditor *ed,
                                       uint8_t *buf,
                                       size_t cap,
                                       size_t *out_len);
+
+/**
+ * A handle with no tabs in `*out`. Trust is read from the trust file at
+ * `trust_file` (`trust_file_len` bytes of UTF-8) on every open, so a folder
+ * the user trusts or revokes later is judged by its current state. Free it
+ * with `kerf_terminals_free`, which stops every tab.
+ *
+ * # Safety
+ *
+ * `trust_file` points to `trust_file_len` readable bytes; `out` is valid for
+ * a write of one pointer.
+ */
+enum KerfStatus kerf_terminals_new(const uint8_t *trust_file,
+                                   size_t trust_file_len,
+                                   struct KerfTerminals **out);
+
+/**
+ * Stop every tab and free the handle. Null is ignored.
+ *
+ * # Safety
+ *
+ * `terms` is null or a live handle not used again after this call.
+ */
+void kerf_terminals_free(struct KerfTerminals *terms);
+
+/**
+ * Open a tab of `rows`×`cols` running `program` (empty: the user's shell)
+ * in the folder `cwd`, and write its id to `*out_id`. A non-empty
+ * `plugin_id` marks the tab as opened by that plugin; the host checked the
+ * plugin's `ide.terminal` grant. `KERF_STATUS_UNTRUSTED`, and nothing
+ * started, when `cwd` is not in a trusted folder.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; each pointer/length pair is readable for that
+ * many bytes; `out_id` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_open(struct KerfTerminals *terms,
+                                   const uint8_t *cwd,
+                                   size_t cwd_len,
+                                   const uint8_t *program,
+                                   size_t program_len,
+                                   const uint8_t *plugin_id,
+                                   size_t plugin_id_len,
+                                   uint16_t rows,
+                                   uint16_t cols,
+                                   uint64_t *out_id);
+
+/**
+ * The open tabs' ids in tab order, through the `copy_text` length contract.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `buf` is null or valid for `cap` ids; `out_len`
+ * is valid for a write.
+ */
+enum KerfStatus kerf_terminal_tabs(struct KerfTerminals *terms,
+                                   uint64_t *buf,
+                                   size_t cap,
+                                   size_t *out_len);
+
+/**
+ * Send `len` bytes to the tab's process as typed keys or a paste.
+ * `KERF_STATUS_TOO_LARGE` when the write or the pending input is over its cap.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `data` points to `len` readable bytes.
+ */
+enum KerfStatus kerf_terminal_write(struct KerfTerminals *terms,
+                                    uint64_t id,
+                                    const uint8_t *data,
+                                    size_t len);
+
+/**
+ * Resize the tab's screen and tell its process.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle.
+ */
+enum KerfStatus kerf_terminal_resize(struct KerfTerminals *terms,
+                                     uint64_t id,
+                                     uint16_t rows,
+                                     uint16_t cols);
+
+/**
+ * Scroll the view `offset` rows back into history (0: the live screen);
+ * the offset applied, clamped to the history kept, goes to `*out_offset`.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `out_offset` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_scroll(struct KerfTerminals *terms,
+                                     uint64_t id,
+                                     size_t offset,
+                                     size_t *out_offset);
+
+/**
+ * Stop the tab's process and remove the tab.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle.
+ */
+enum KerfStatus kerf_terminal_close(struct KerfTerminals *terms, uint64_t id);
+
+/**
+ * The tab's state into `*out`.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `out` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_info(struct KerfTerminals *terms,
+                                   uint64_t id,
+                                   struct KerfTerminalInfo *out);
+
+/**
+ * The cells on screen at the scroll offset, row-major (`rows * cols`
+ * cells), through the `copy_text` length contract.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `buf` is null or valid for `cap` cells;
+ * `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_cells(struct KerfTerminals *terms,
+                                    uint64_t id,
+                                    struct KerfTerminalCell *buf,
+                                    size_t cap,
+                                    size_t *out_len);
+
+/**
+ * One `KERF_TERMINAL_TEXT_*` as UTF-8 into `buf` (`cap` bytes, no NUL),
+ * with the same length contract as `kerf_editor_copy_text`.
+ *
+ * # Safety
+ *
+ * `terms` is a live handle; `buf` is null or valid for `cap` bytes of
+ * writes; `out_len` is valid for a write.
+ */
+enum KerfStatus kerf_terminal_copy_text(struct KerfTerminals *terms,
+                                        uint64_t id,
+                                        uint32_t which,
+                                        uint8_t *buf,
+                                        size_t cap,
+                                        size_t *out_len);
 
 /**
  * A view of `width`×`height` physical pixels at `scale` pixels per point

@@ -16,6 +16,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 # Workspace versions live in the root `[workspace.dependencies]`.
 kerf-core = { workspace = true }
 kerf-slint = { workspace = true }
+kerf-terminal = { workspace = true }
 
 [dev-dependencies]
 cbindgen = { workspace = true }
