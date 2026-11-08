@@ -44,6 +44,7 @@
 | `gtk4` | Cargo (workspace dep as `gtk`, feature `v4_14`, Linux only) | `kerf-gtk`: the Linux host's window, widgets, input methods and textures through gtk-rs's bindings | https://crates.io/crates/gtk4 |
 | `cbindgen` | Cargo (workspace dev dep, default features off) | `kerf-ffi` tests: generate `include/kerf.h` from the Rust declarations and fail when the committed header is stale | https://crates.io/crates/cbindgen |
 | `ureq` | Cargo (workspace dep) | `kerf-complete`: blocking HTTP for fill-in-the-middle requests on a worker thread; whole-call timeout and body limit built in, no async runtime; gzip off so the limit caps decoded bytes | https://crates.io/crates/ureq |
+| `git2` | Cargo (workspace dep, default features off, `vendored-libgit2`) | `kerf-scm`: status, index stage and unstage, diff hunks and commit through libgit2, which runs no hooks; no network features, so no push. gix has no tree-from-index or `add` yet. `kerf-ffi` tests (dev): throwaway repositories. Brings `libgit2-sys` and `libz-sys`; the macOS host links `iconv`, `z` and Security for it | https://crates.io/crates/git2 |
 | `httpmock` | Cargo (workspace dev dep) | `kerf-complete` tests: a fake `/v1/infill` with per-mock delays, bodies and call counts (timeout, size cap, cancellation) | https://crates.io/crates/httpmock |
 
 ## Linkers

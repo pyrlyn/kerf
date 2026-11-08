@@ -78,6 +78,12 @@ ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 # Fake HTTP endpoint for `kerf-complete`'s tests (dev only): per-mock delays,
 # bodies and hit counts for the timeout, size-cap and cancellation cases.
 httpmock = "0.8.3"
+# Git for `kerf-scm`: status, index stage and unstage, diff hunks and commit
+# in-process. gix has no tree-from-index or `add` yet, and the `git` CLI
+# would run the repository's hooks and config-driven commands. Default
+# features off: no network, so no push; libgit2 vendored for one version on
+# every host.
+git2 = { version = "0.21.0", default-features = false, features = ["vendored-libgit2"] }
 # Path dependency for the edit-event type; `kerf-semantic` never touches the buffer.
 kerf-core = { path = "crates/kerf-core" }
 # The extism plugin engine shared with cox and scull (worker thread, lanes,
@@ -94,6 +100,8 @@ cox-plugin-api = { git = "https://github.com/pyrlyn/cox", rev = "0fd02a1e88144ac
 kerf-semantic = { path = "crates/kerf-semantic" }
 # The Slint editor surface `kerf-ffi` exposes to native hosts.
 kerf-slint = { path = "crates/kerf-slint" }
+# The source control model `kerf-ffi` exposes to native hosts.
+kerf-scm = { path = "crates/kerf-scm" }
 # The C ABI the Linux host (`kerf-gtk`) calls.
 kerf-ffi = { path = "crates/kerf-ffi" }
 # GTK 4 for the Linux host (`kerf-gtk`, research.md §7): the toolkit GNOME's
