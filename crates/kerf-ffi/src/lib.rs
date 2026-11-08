@@ -16,6 +16,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
 pub mod navigator;
+mod terminal;
 mod view;
 pub mod workspace;
 
@@ -24,6 +25,14 @@ use std::path::Path;
 
 use kerf_core::{Editor, ReadError, TextBuffer};
 
+pub use terminal::{
+    KERF_TERMINAL_CELL_TEXT_BYTES, KERF_TERMINAL_COLOR_DEFAULT, KERF_TERMINAL_COLOR_INDEXED,
+    KERF_TERMINAL_COLOR_RGB, KERF_TERMINAL_TEXT_ORIGIN, KERF_TERMINAL_TEXT_SCREEN,
+    KERF_TERMINAL_TEXT_TITLE, KerfTerminalCell, KerfTerminalColor, KerfTerminalInfo, KerfTerminals,
+    kerf_terminal_cells, kerf_terminal_close, kerf_terminal_copy_text, kerf_terminal_info,
+    kerf_terminal_open, kerf_terminal_resize, kerf_terminal_scroll, kerf_terminal_tabs,
+    kerf_terminal_write, kerf_terminals_free, kerf_terminals_new,
+};
 pub use view::{
     KerfRect, KerfTheme, KerfView, kerf_view_caret, kerf_view_free, kerf_view_new,
     kerf_view_read_rgba, kerf_view_render, kerf_view_resize, kerf_view_set_theme,
@@ -77,6 +86,10 @@ pub enum KerfStatus {
     /// A view call came from a thread other than the one that made the view;
     /// Slint is single-threaded.
     WrongThread = 10,
+    /// The folder is not trusted; no process was started.
+    Untrusted = 11,
+    /// No such id, such as a closed terminal tab.
+    NotFound = 12,
 }
 
 /// An editor: one buffer and its cursor. Opaque to the host.

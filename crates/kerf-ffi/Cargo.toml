@@ -18,6 +18,7 @@ kerf-core = { workspace = true }
 kerf-navigator = { workspace = true }
 kerf-semantic = { workspace = true }
 kerf-slint = { workspace = true }
+kerf-terminal = { workspace = true }
 kerf-workspace = { workspace = true }
 # The workspace state crosses the C ABI as one JSON snapshot.
 serde = { workspace = true }
