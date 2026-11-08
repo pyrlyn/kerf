@@ -62,7 +62,7 @@
 
 External crates only; workspace crates such as `kerf-core` are not listed. Rows
 are added by the task that wires each crate in — T2.1 adds the rope crate once
-it picks one against the alternatives (`plan.md` T2.1).
+it picks one against the alternatives (`plan/T2.1`).
 
 | Package | Where | Source | Why here |
 | --- | --- | --- | --- |

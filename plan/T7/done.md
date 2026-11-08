@@ -1,0 +1,5 @@
+# T7. Workspace Trust: done
+
+Result: `kerf_core::trust` — `TrustStore` (`grant`, `revoke`, `is_trusted`, `authorize`), `SpawnPermit`, `SpawnKind`, `TrustError`, `MAX_TRUSTED_ROOTS`. Ten unit tests cover refusal before trust, a permit after trust, refusal after revoke, subfolders, a sibling sharing the prefix, `..`, a symlink out of the root, revoking a parent or a subfolder, a deleted root, unresolvable paths and the cap. Persistence followed architecture decision 7: `TrustStore::load` / `save` / `default_path` keep the roots in `kerf/trust.toml` under the OS config directory (`dirs`), with a committed JSON Schema checked by a test, a 4 MiB read cap, the 1024-root cap, absolute roots only, and an atomic write through `fs-kit`, which also gives canonical paths without the Windows `\\?\` prefix and case-folded prefix checks. Eight more tests cover the round trip, a missing file, a relative root, unknown keys and bad TOML, an oversized file, the root cap, the default path and the schema.
+
+Commits: pyrlyn/kerf#14 (`c9b3a92`).

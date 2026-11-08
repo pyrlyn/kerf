@@ -7,7 +7,7 @@ If an `AGENTS.md` or `CLAUDE.md` exists higher in the tree, follow it too; on co
 ## Read first
 
 - `research.md` — the survey of existing IDEs and editors, and what Kerf takes from each.
-- `plan.md` — active tasks. T1 (architecture) sets the contracts the other tasks build on.
+- `plan/` — tasks, one folder per task (`plan/README.md`). T1 (architecture) set the contracts the other tasks build on.
 - `ideas.md` — candidate tasks, not approved.
 
 ## Direction
