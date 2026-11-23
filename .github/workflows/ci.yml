@@ -33,21 +33,26 @@ jobs:
   # pyrlyn matrix, which also has Linux aarch64.
   rust:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    uses: pyrlyn/ci/.github/workflows/ci-rust.yml@main
+    uses: pyrlyn-archive/ci-old/.github/workflows/ci-rust.yml@9675ff42a0e3785beabccb68b0e4fa65910de453 # main
     # ci-rust cancels the whole run when a job fails (cancel-run-on-failure),
     # which needs `actions: write` on the calling job.
     permissions:
       contents: read
       actions: write
     with:
-      # ketch alongside Rust: the `kerf-binaries` tests run the real binary.
-      mise-install-args: rust github:pyrlyn/ketch
+      # Rust only; ketch comes in setup-command below, because ketch ships no
+      # Windows binary and an explicit `mise install` ignores mise.toml's `os`.
+      mise-install-args: rust
       # `kerf-slint`'s text stack finds fonts through fontconfig on Linux, and
       # its build links the library's headers. The Linux host (`kerf-gtk`)
       # links GTK 4 and its test needs a display: a virtual X server that
       # lives for the rest of the job, and KERF_REQUIRE_DISPLAY so a missing
       # display fails instead of skipping.
       setup-command: |
+        # The `kerf-binaries` tests run the real ketch binary (macOS and Linux only).
+        if [ "$RUNNER_OS" != Windows ]; then
+          mise install github:pyrlyn/ketch
+        fi
         if [ "$RUNNER_OS" = Linux ]; then
           sudo apt-get update -qq
           sudo apt-get install -y -qq libfontconfig1-dev libgtk-4-dev xvfb
@@ -73,7 +78,7 @@ jobs:
       value: ${{ steps.r.outputs.value }}
     steps:
       - id: r
-        uses: pyrlyn/ci/.github/actions/macos-runner@3fa4275e525269297a4d193c427f965ad9dd7544 # main
+        uses: pyrlyn-archive/ci-old/.github/actions/macos-runner@3fa4275e525269297a4d193c427f965ad9dd7544 # main
         with:
           runner: ${{ vars.MACOS_RUNNER }}
           value: '["xcode-27"]'
@@ -94,7 +99,7 @@ jobs:
         working-directory: macos
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pyrlyn/ci/.github/actions/setup-xcode@3fa4275e525269297a4d193c427f965ad9dd7544 # main
+      - uses: pyrlyn-archive/ci-old/.github/actions/setup-xcode@3fa4275e525269297a4d193c427f965ad9dd7544 # main
         with:
           version: "27"
       - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
