@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   sync:
-    uses: pyrlyn/ci/.github/workflows/sync-docs.yml@main
+    uses: pyrlyn-archive/ci-old/.github/workflows/sync-docs.yml@main
     permissions:
       contents: read
     with:
