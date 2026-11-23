@@ -33,7 +33,7 @@ jobs:
   # pyrlyn matrix, which also has Linux aarch64.
   rust:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    uses: pyrlyn-archive/ci-old/.github/workflows/ci-rust.yml@main
+    uses: pyrlyn-archive/ci-old/.github/workflows/ci-rust.yml@9675ff42a0e3785beabccb68b0e4fa65910de453 # main
     # ci-rust cancels the whole run when a job fails (cancel-run-on-failure),
     # which needs `actions: write` on the calling job.
     permissions:
