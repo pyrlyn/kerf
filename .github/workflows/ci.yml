@@ -40,8 +40,7 @@ jobs:
       contents: read
       actions: write
     with:
-      # Rust only; ketch comes in setup-command below, because ketch ships no
-      # Windows binary and an explicit `mise install` ignores mise.toml's `os`.
+      # Rust only; ketch comes in setup-command below.
       mise-install-args: rust
       # `kerf-slint`'s text stack finds fonts through fontconfig on Linux, and
       # its build links the library's headers. The Linux host (`kerf-gtk`)
@@ -49,10 +48,8 @@ jobs:
       # lives for the rest of the job, and KERF_REQUIRE_DISPLAY so a missing
       # display fails instead of skipping.
       setup-command: |
-        # The `kerf-binaries` tests run the real ketch binary (macOS and Linux only).
-        if [ "$RUNNER_OS" != Windows ]; then
-          mise install github:pyrlyn/ketch
-        fi
+        # The `kerf-binaries` tests run the real ketch binary.
+        mise install github:pyrlyn/ketch
         if [ "$RUNNER_OS" = Linux ]; then
           sudo apt-get update -qq
           sudo apt-get install -y -qq libfontconfig1-dev libgtk-4-dev xvfb
