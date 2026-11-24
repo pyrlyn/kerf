@@ -6,8 +6,6 @@
 //! API, so no test touches the network. ketch comes from `mise.toml`; set
 //! `KERF_KETCH` to use another build.
 
-// ketch ships no Windows binary yet, so these tests run on macOS and Linux only.
-#![cfg(not(windows))]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::collections::HashMap;
